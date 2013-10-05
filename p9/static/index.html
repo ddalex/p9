@@ -1,0 +1,133 @@
+<html>
+<head>
+</head>
+<body>
+<script>
+
+
+//  data = "data:" + myRequest.getResponseHeader('content-type') + ";base64," + window.btoa(myRequest.responseText);
+function getCandidates(f) {
+        var myRequest = new XMLHttpRequest();
+
+        myRequest.onreadystatechange = function() {
+                if (myRequest.readyState == XMLHttpRequest.DONE && myRequest.status == 200) {
+                    f(JSON.parse(myRequest.responseText));
+                }
+        };
+        myRequest.open("GET", "http://localhost:8000/icecandidates", true);
+        myRequest.send();
+}
+
+function postCandidate(info, f) {
+        var myRequest = new XMLHttpRequest();
+
+        myRequest.onreadystatechange = function() {
+                if (myRequest.readyState == XMLHttpRequest.DONE && myRequest.status == 200) {
+                    console.log("POST: ", myRequest.responseText);
+                    f(JSON.parse(myRequest.responseText));
+                }
+        };
+        myRequest.open("POST", "http://localhost:8000/icecandidates", true);
+        myRequest.send("d=" + encodeURIComponent(info));
+}
+
+var localPeerConnection = undefined;
+var sendChannel = undefined;
+
+//setInterval(function(){postCandidate("test", function(data) {
+//    document.getElementById('list1').innerHTML += data + "<br/>";
+//})}, 1000);
+
+function rtcTest() {
+
+        var iceServers = {
+            iceServers: [{
+            url: 'stun:adamian-desktop.isw.intel.com'
+            }]
+        };
+
+        if (window.RTCPeerConnection != undefined )
+                RPCObject =  window.RTCPeerConnection
+        else if (window.mozRTCPeerConnection != undefined )
+                RPCObject =  window.mozRTCPeerConnection
+        else if (window.webkitRTCPeerConnection != undefined )
+                RPCObject =  window.webkitRTCPeerConnection
+        else throw "Error finding RPCObject";
+
+        localPeerConnection = new RPCObject(iceServers, {optional: [{RtpDataChannels: true}]});
+
+        localPeerConnection.onicecandidate = function(evt) {
+            postCandidate(JSON.stringify({"ice":evt.candidate}));
+        }
+
+        localPeerConnection.onconnecting = function(evt) {
+            console.log("2: !" , evt);
+        }
+
+        localPeerConnection.onopen = function(evt) {
+            console.log("3: !" , evt);
+        }
+
+        localPeerConnection.ondatachannel = function(evt) {
+            console.log("4: !" , evt);
+        }
+
+        localPeerConnection.oniceconnectionstatechange = function(evt) {
+            console.log("5: !" , evt);
+        }
+
+        localPeerConnection.onnegotiationneeded = function(evt) {
+            console.log("onnegotiationneded: !", evt);
+
+            // TODO: search events, if not found, create offer
+            getCandidates(function(data){
+              list = JSON.parse(data);
+              found = false;
+              for (i in list) {
+                console.log(i);
+                break;
+              }
+
+              if (found)
+                localPeerConnection.setRemoteDescription(new RTCSessionDescription(i.sdp.sdp));
+              else {
+                localPeerConnection.createOffer(function(desc) {
+                  console.log("desc ", desc)
+                  localPeerConnection.setLocalDescription(desc);
+                  postCandidate(JSON.stringify({"sdp":desc}), function(data){console.log(JSON.parse(data))});
+                });
+              }
+            })
+        }
+
+        localPeerConnection.onsignalingstatechange = function(evt) {
+            console.log("signalstatechange: !" , evt);
+        }
+
+        localPeerConnection.onaddstream = function(evt) {
+            console.log("remoteaddedstream: !" , evt);
+        }
+
+        localPeerConnection.onremovestream = function(evt) {
+            console.log("remoteremovedstream: !" , evt);
+        }
+        console.log(localPeerConnection);
+
+        sendChannel = localPeerConnection.createDataChannel("data1", {});
+        sendChannel.onopen = function(evt) {
+            console.log("sC: 1" , evt);
+        }
+
+
+}
+
+rtcTest();
+
+
+//var lDataChannel = localPeerConnection.createDataChannel('dataSend', {reliable: false});
+
+</script>
+<div id="list1"></div>
+<!-- iframe id="iframe1"/-->
+</body>
+</html>
