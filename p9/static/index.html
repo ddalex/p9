@@ -4,9 +4,15 @@
 <body>
 <script>
 
-
+/**
+    Messaging system
+*/
 //  data = "data:" + myRequest.getResponseHeader('content-type') + ";base64," + window.btoa(myRequest.responseText);
-function getCandidates(f) {
+
+var msgCallbacks = {}
+var lastRefreshTime = 0;
+
+function getMessages(f) {
         var myRequest = new XMLHttpRequest();
 
         myRequest.onreadystatechange = function() {
@@ -14,11 +20,11 @@ function getCandidates(f) {
                     f(JSON.parse(myRequest.responseText));
                 }
         };
-        myRequest.open("GET", "http://localhost:8000/icecandidates", true);
+        myRequest.open("GET", "http://localhost:8000/messages?since=" + lastRefreshTime, true);
         myRequest.send();
 }
 
-function postCandidate(info, f) {
+function postCandidate(type, info, f) {
         var myRequest = new XMLHttpRequest();
 
         myRequest.onreadystatechange = function() {
@@ -27,9 +33,48 @@ function postCandidate(info, f) {
                     f(JSON.parse(myRequest.responseText));
                 }
         };
-        myRequest.open("POST", "http://localhost:8000/icecandidates", true);
+        myRequest.open("POST", "http://localhost:8000/messages", true);
         myRequest.send("d=" + encodeURIComponent(info));
 }
+
+function registerCallback(msgtype, callable) {
+    if (msgtype in msgCallbacks) {
+        msgCallbacks[msgtype].concat([callable]);
+    } else {
+        msgCallbacks[msgtype] = [callable];
+    }
+}
+
+function dispatchMessage(type, data) {
+    if (type in msgCallbacks)
+        for (f in msgCallbacks[type]) {
+            msgCallbacks[type][f](data);
+        }
+}
+
+function startMesssageSystem() {
+    setInterval(getMessages, 1000, function(data) {
+        for (m in data) {
+            if (data[m].c > lastRefreshTime) {
+                lastRefreshTime = data[m].c;
+                dispatchMessage(data[m].t, data[m].d);
+            }
+        }
+    });
+}
+
+registerCallback("t1", function(message) {
+    console.log("m: ", message, lastRefreshTime);
+});
+
+startMesssageSystem();
+
+</script>
+<!-- script>
+
+/**
+    P2P system
+*/
 
 var localPeerConnection = undefined;
 var sendChannel = undefined;
@@ -80,7 +125,7 @@ function rtcTest() {
             console.log("onnegotiationneded: !", evt);
 
             // TODO: search events, if not found, create offer
-            getCandidates(function(data){
+            getMessages(function(data){
               list = JSON.parse(data);
               found = false;
               for (i in list) {
@@ -126,7 +171,7 @@ rtcTest();
 
 //var lDataChannel = localPeerConnection.createDataChannel('dataSend', {reliable: false});
 
-</script>
+</script -->
 <div id="list1"></div>
 <!-- iframe id="iframe1"/-->
 </body>
