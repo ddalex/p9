@@ -10,6 +10,7 @@ urlpatterns = patterns('',
     # Examples:
     # url(r'^$', 'p9.views.home', name='home'),
     # url(r'^p9/', include('p9.foo.urls')),
+    url(r'^clients', 'sign.views.clients'),
     url(r'^messages', 'sign.views.messages'),
 
     # Uncomment the admin/doc line below to enable admin documentation:

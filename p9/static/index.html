@@ -23,7 +23,7 @@ var RTCSTATUS = {
 };
 
 
-function rtcTest() {
+function rtcSetConnection() {
 				var role = ROLE.CALLER;
 				var rtcstatus = RTCSTATUS.IDLE;
 
@@ -34,8 +34,11 @@ function rtcTest() {
 				function localDescriptionCallback(sdp) { 
 								console.log("we got local description", sdp);
 								lPC.setLocalDescription(sdp, 
-									function () { smsPostMessage("sdp", JSON.stringify(sdp)); }, // success, we post our offer !
-									function (error) { console.log("ERR: setLocalDescription ", error) } // errorCallback
+									function () { 
+										smsPostMessage("sdp", JSON.stringify(sdp)); // success, we post our description
+
+									},
+										function (error) { console.log("ERR: setLocalDescription ", error) } // errorCallback
 				)}
 
         var iceServers = {
@@ -56,8 +59,9 @@ function rtcTest() {
 
         lPC = new RPCObject(iceServers, {optional: [{RtpDataChannels: true}]});
 
+
         lPC.onicecandidate = function(evt) {
-						console.log("0: got ice candidate", evt.candidate);
+//						console.log("0: got ice candidate", evt.candidate);
             smsPostMessage("candidate", JSON.stringify(evt.candidate));
         }
 
@@ -102,15 +106,12 @@ function rtcTest() {
         }
 
 				smsRegisterCallback("candidate", function(message) {
-					if (lPC != undefined) {	
 						msg = JSON.parse(message);
 						console.log("got remote candidate", msg);
 						lPC.addIceCandidate(new RTCIceCandidate(msg));
-				  }
 				});
 
 				smsRegisterCallback("sdp", function(message) {
-					if (lPC != undefined) {
 						msg = JSON.parse(message);
 						console.log("got remote offer", msg);
 						lPC.setRemoteDescription(new RTCSessionDescription(msg), 
@@ -118,11 +119,9 @@ function rtcTest() {
 									lPC.createAnswer( localDescriptionCallback, console.log );
 								}
 							, console.log); // we got another peer's offer
-				  }
 				});
 
-
-
+		return lPC;
 }
 
 
@@ -133,13 +132,30 @@ function rtcTest() {
 	Start the system when the page is loaded.
 */
 $(document).ready( function () {
-	smsStartSystem();
-	rtcTest();
+	smsStartSystem();	
+
+	// for each client already existing, we will createOffers and send them
+	peerConns = [];
+  smsListClients(function (clients) {
+		console.log(clients);
+		for (i = 0; i < clients.length; i++) {
+				if (clients[i].s != myId) {
+							console.log("SETUP: trying to connect to ", clients[i].s);
+//							peerConns.push(rtcSetConnection());
+				}
+		}
+	});
+
+	// then we wait for new clients waiting to join us
+	console.log("waiting for remote");
+//	rtcSetConnection();	
+
 });
 
-$(document).unload( function () {
+window.onbeforeunload = function () {
+	console.log("almost dead");
 	smsStopSystem();
-});
+};
 
 </script>
 

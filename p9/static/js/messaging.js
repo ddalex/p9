@@ -1,6 +1,12 @@
 /* vim: set tabstop=4 expandtab softab */
+//var HOMEURL = "http://localhost:8000";
+var HOMEURL = "";
+
 var msgCallbacks = {}
-var lastRefreshTime = 0;
+// start at most 5 seconds ago
+var lastRefreshTime = Math.floor(new Date().getTime() / 1000) - 5;
+
+
 
 function _smsCreateUUID() {
 	// http://www.ietf.org/rfc/rfc4122.txt
@@ -32,11 +38,11 @@ function smsGetMessages(f) {
 			f(JSON.parse(myRequest.responseText));
 		}
 	};
-	myRequest.open("GET", "http://localhost:8000/messages?s="+encodeURIComponent(myId)+"&since=" + encodeURIComponent(lastRefreshTime), true);
+	myRequest.open("GET", HOMEURL+"/messages?s="+encodeURIComponent(myId)+"&since=" + encodeURIComponent(lastRefreshTime), true);
 	myRequest.send();
 }
 
-function smsPostMessage(type, info, f ) {
+function smsPostMessage(type, info, f, recipient ) {
 	var myRequest = new XMLHttpRequest();
 	if (f == undefined)
 		f = _smsProcessMessages;
@@ -47,9 +53,9 @@ function smsPostMessage(type, info, f ) {
 			f(JSON.parse(myRequest.responseText));
 		}
 	};
-	myRequest.open("POST", "http://localhost:8000/messages?s=" + encodeURIComponent(myId), true);
+	myRequest.open("POST", HOMEURL+"/messages?s=" + encodeURIComponent(myId) + "&since=" + encodeURIComponent(lastRefreshTime), true);
 	myRequest.setRequestHeader("Content-type","application/x-www-form-urlencoded");
-	myRequest.send("t="+encodeURIComponent(type)+"&d=" + encodeURIComponent(info));
+	myRequest.send("r=" + encodeURIComponent(recipient) + "&t="+encodeURIComponent(type)+"&d=" + encodeURIComponent(info));
 }
 
 function smsRegisterCallback(msgtype, callable) {
@@ -77,15 +83,43 @@ function _smsProcessMessages(data) {
 	}
 }
 
+function _smsUpdateClient(isdead) {
+	if (isdead == undefined)
+		isdead = 0;
+
+	var myRequest = new XMLHttpRequest();
+
+	myRequest.open("POST", HOMEURL+"/clients?s=" + encodeURIComponent(myId), false);
+	myRequest.setRequestHeader("Content-type","application/x-www-form-urlencoded");
+	myRequest.send("x="+encodeURIComponent(isdead));
+}
+
+function smsListClients(f) {
+	var myRequest = new XMLHttpRequest();
+
+	myRequest.onreadystatechange = function() {
+		if (myRequest.readyState == XMLHttpRequest.DONE && myRequest.status == 200) {
+			f(JSON.parse(myRequest.responseText));
+		}
+	};
+	myRequest.open("GET", HOMEURL+"/clients?s="+encodeURIComponent(myId), true);
+	myRequest.send();
+}
+
+
 var handle;		// this is the handle for the interative setInterval
 
 function smsStartSystem() {
 	console.log("starting system");
+	_smsUpdateClient();		// signal we're alive
 	handle = setInterval(function() { 
 			smsGetMessages( _smsProcessMessages ) },   
-			1000);
+			5000);
 }
 
 function smsStopSystem() {
+	clearInterval(handle);
+	handle = undefined;
+	_smsUpdateClient(1);		// mark dead client
 }
 
