@@ -1,94 +1,49 @@
+<!DOCTYPE html>
 <html>
-<head>
+<!-- vim: set tabstop=4 expandtab softab -->
+<head><title>Vision</title>
 </head>
 <body>
+<script src="js/jquery-2.0.3.min.js"></script>
+<script src="js/messaging.js"></script>
 <script>
 
 /**
-    Messaging system
-*/
-//  data = "data:" + myRequest.getResponseHeader('content-type') + ";base64," + window.btoa(myRequest.responseText);
-
-var msgCallbacks = {}
-var lastRefreshTime = 0;
-
-function getMessages(f) {
-        var myRequest = new XMLHttpRequest();
-
-        myRequest.onreadystatechange = function() {
-                if (myRequest.readyState == XMLHttpRequest.DONE && myRequest.status == 200) {
-                    f(JSON.parse(myRequest.responseText));
-                }
-        };
-        myRequest.open("GET", "http://localhost:8000/messages?since=" + lastRefreshTime, true);
-        myRequest.send();
-}
-
-function postCandidate(type, info, f) {
-        var myRequest = new XMLHttpRequest();
-
-        myRequest.onreadystatechange = function() {
-                if (myRequest.readyState == XMLHttpRequest.DONE && myRequest.status == 200) {
-                    console.log("POST: ", myRequest.responseText);
-                    f(JSON.parse(myRequest.responseText));
-                }
-        };
-        myRequest.open("POST", "http://localhost:8000/messages", true);
-        myRequest.send("d=" + encodeURIComponent(info));
-}
-
-function registerCallback(msgtype, callable) {
-    if (msgtype in msgCallbacks) {
-        msgCallbacks[msgtype].concat([callable]);
-    } else {
-        msgCallbacks[msgtype] = [callable];
-    }
-}
-
-function dispatchMessage(type, data) {
-    if (type in msgCallbacks)
-        for (f in msgCallbacks[type]) {
-            msgCallbacks[type][f](data);
-        }
-}
-
-function startMesssageSystem() {
-    setInterval(getMessages, 1000, function(data) {
-        for (m in data) {
-            if (data[m].c > lastRefreshTime) {
-                lastRefreshTime = data[m].c;
-                dispatchMessage(data[m].t, data[m].d);
-            }
-        }
-    });
-}
-
-registerCallback("t1", function(message) {
-    console.log("m: ", message, lastRefreshTime);
-});
-
-startMesssageSystem();
-
-</script>
-<!-- script>
-
-/**
-    P2P system
+    P2P single connection
 */
 
-var localPeerConnection = undefined;
-var sendChannel = undefined;
+var ROLE = {
+	CALLER : "caller",
+	RECEIVER : "receive",
+	};
 
-//setInterval(function(){postCandidate("test", function(data) {
-//    document.getElementById('list1').innerHTML += data + "<br/>";
-//})}, 1000);
+var RTCSTATUS = { 
+	IDLE : "idle",
+	CONNECTED	: "connected",
+};
+
 
 function rtcTest() {
+				var role = ROLE.CALLER;
+				var rtcstatus = RTCSTATUS.IDLE;
+
+				var lPC = undefined;
+				var sendChannel = undefined;
+				
+				// called on either createOffer or createAnswer
+				function localDescriptionCallback(sdp) { 
+								console.log("we got local description", sdp);
+								lPC.setLocalDescription(sdp, 
+									function () { smsPostMessage("sdp", JSON.stringify(sdp)); }, // success, we post our offer !
+									function (error) { console.log("ERR: setLocalDescription ", error) } // errorCallback
+				)}
 
         var iceServers = {
-            iceServers: [{
-            url: 'stun:adamian-desktop.isw.intel.com'
-            }]
+            iceServers: [
+						{ url: 'stun:stun.sipgate.net' },
+						{ url: 'stun:stun.ekiga.net' },
+						{ url: 'stun:stun.l.google.com:19302' },
+						]
         };
 
         if (window.RTCPeerConnection != undefined )
@@ -99,80 +54,97 @@ function rtcTest() {
                 RPCObject =  window.webkitRTCPeerConnection
         else throw "Error finding RPCObject";
 
-        localPeerConnection = new RPCObject(iceServers, {optional: [{RtpDataChannels: true}]});
+        lPC = new RPCObject(iceServers, {optional: [{RtpDataChannels: true}]});
 
-        localPeerConnection.onicecandidate = function(evt) {
-            postCandidate(JSON.stringify({"ice":evt.candidate}));
+        lPC.onicecandidate = function(evt) {
+						console.log("0: got ice candidate", evt.candidate);
+            smsPostMessage("candidate", JSON.stringify(evt.candidate));
         }
 
-        localPeerConnection.onconnecting = function(evt) {
+        lPC.onconnecting = function(evt) {
             console.log("2: !" , evt);
         }
 
-        localPeerConnection.onopen = function(evt) {
+        lPC.onopen = function(evt) {
             console.log("3: !" , evt);
         }
 
-        localPeerConnection.ondatachannel = function(evt) {
+        lPC.ondatachannel = function(evt) {
             console.log("4: !" , evt);
         }
 
-        localPeerConnection.oniceconnectionstatechange = function(evt) {
+        lPC.oniceconnectionstatechange = function(evt) {
             console.log("5: !" , evt);
+						console.log("Ice connection state: ", lPC.iceConnectionState);
         }
 
-        localPeerConnection.onnegotiationneeded = function(evt) {
+        lPC.onnegotiationneeded = function(evt) {
             console.log("onnegotiationneded: !", evt);
+					  lPC.createOffer( localDescriptionCallback, console.log);
+				}
 
-            // TODO: search events, if not found, create offer
-            getMessages(function(data){
-              list = JSON.parse(data);
-              found = false;
-              for (i in list) {
-                console.log(i);
-                break;
-              }
-
-              if (found)
-                localPeerConnection.setRemoteDescription(new RTCSessionDescription(i.sdp.sdp));
-              else {
-                localPeerConnection.createOffer(function(desc) {
-                  console.log("desc ", desc)
-                  localPeerConnection.setLocalDescription(desc);
-                  postCandidate(JSON.stringify({"sdp":desc}), function(data){console.log(JSON.parse(data))});
-                });
-              }
-            })
-        }
-
-        localPeerConnection.onsignalingstatechange = function(evt) {
+        lPC.onsignalingstatechange = function(evt) {
             console.log("signalstatechange: !" , evt);
         }
 
-        localPeerConnection.onaddstream = function(evt) {
+        lPC.onaddstream = function(evt) {
             console.log("remoteaddedstream: !" , evt);
         }
 
-        localPeerConnection.onremovestream = function(evt) {
+        lPC.onremovestream = function(evt) {
             console.log("remoteremovedstream: !" , evt);
         }
-        console.log(localPeerConnection);
+        console.log("created lpc ", lPC);
 
-        sendChannel = localPeerConnection.createDataChannel("data1", {});
+        sendChannel = lPC.createDataChannel("data1", {});
         sendChannel.onopen = function(evt) {
             console.log("sC: 1" , evt);
         }
 
+				smsRegisterCallback("candidate", function(message) {
+					if (lPC != undefined) {	
+						msg = JSON.parse(message);
+						console.log("got remote candidate", msg);
+						lPC.addIceCandidate(new RTCIceCandidate(msg));
+				  }
+				});
+
+				smsRegisterCallback("sdp", function(message) {
+					if (lPC != undefined) {
+						msg = JSON.parse(message);
+						console.log("got remote offer", msg);
+						lPC.setRemoteDescription(new RTCSessionDescription(msg), 
+								function () {
+									lPC.createAnswer( localDescriptionCallback, console.log );
+								}
+							, console.log); // we got another peer's offer
+				  }
+				});
+
+
 
 }
 
-rtcTest();
 
+</script>
 
-//var lDataChannel = localPeerConnection.createDataChannel('dataSend', {reliable: false});
+<script>
+/**
+	Start the system when the page is loaded.
+*/
+$(document).ready( function () {
+	smsStartSystem();
+	rtcTest();
+});
 
-</script -->
+$(document).unload( function () {
+	smsStopSystem();
+});
+
+</script>
+
 <div id="list1"></div>
-<!-- iframe id="iframe1"/-->
+<script>
+</script>
 </body>
 </html>
