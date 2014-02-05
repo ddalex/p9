@@ -13,40 +13,40 @@
 */
 
 var ROLE = {
-	CALLER : "caller",
-	RECEIVER : "receive",
-	};
+    CALLER : "caller",
+    RECEIVER : "receive",
+    };
 
-var RTCSTATUS = { 
-	IDLE : "idle",
-	CONNECTED	: "connected",
+var RTCSTATUS = {
+    IDLE : "idle",
+    CONNECTED    : "connected",
 };
 
 
 function rtcSetConnection() {
-				var role = ROLE.CALLER;
-				var rtcstatus = RTCSTATUS.IDLE;
+                var role = ROLE.CALLER;
+                var rtcstatus = RTCSTATUS.IDLE;
 
-				var lPC = undefined;
-				var sendChannel = undefined;
-				
-				// called on either createOffer or createAnswer
-				function localDescriptionCallback(sdp) { 
-								console.log("we got local description", sdp);
-								lPC.setLocalDescription(sdp, 
-									function () { 
-										smsPostMessage("sdp", JSON.stringify(sdp)); // success, we post our description
+                var lPC = undefined;
+                var sendChannel = undefined;
 
-									},
-										function (error) { console.log("ERR: setLocalDescription ", error) } // errorCallback
-				)}
+                // called on either createOffer or createAnswer
+                function localDescriptionCallback(sdp) {
+                                console.log("we got local description", sdp);
+                                lPC.setLocalDescription(sdp,
+                                    function () {
+                                        smsPostMessage("sdp", JSON.stringify(sdp)); // success, we post our description
+
+                                    },
+                                        function (error) { console.log("ERR: setLocalDescription ", error) } // errorCallback
+                )}
 
         var iceServers = {
             iceServers: [
-						{ url: 'stun:stun.sipgate.net' },
-						{ url: 'stun:stun.ekiga.net' },
-						{ url: 'stun:stun.l.google.com:19302' },
-						]
+                        { url: 'stun:stun.sipgate.net' },
+                        { url: 'stun:stun.ekiga.net' },
+                        { url: 'stun:stun.l.google.com:19302' },
+                        ]
         };
 
         if (window.RTCPeerConnection != undefined )
@@ -61,7 +61,7 @@ function rtcSetConnection() {
 
 
         lPC.onicecandidate = function(evt) {
-//						console.log("0: got ice candidate", evt.candidate);
+                        console.log("0: got ice candidate", evt.candidate);
             smsPostMessage("candidate", JSON.stringify(evt.candidate));
         }
 
@@ -79,13 +79,23 @@ function rtcSetConnection() {
 
         lPC.oniceconnectionstatechange = function(evt) {
             console.log("5: !" , evt);
-						console.log("Ice connection state: ", lPC.iceConnectionState);
+                        console.log("Ice connection state: ", lPC.iceConnectionState);
         }
 
         lPC.onnegotiationneeded = function(evt) {
             console.log("onnegotiationneded: !", evt);
-					  lPC.createOffer( localDescriptionCallback, console.log);
-				}
+                      //lPC.createOffer( localDescriptionCallback, console.log);
+                }
+
+                lPC.triggerCreateOffer = function() {
+                        console.log("autocreating offer");
+                        lpc.createOffer(localDescriptionCallback, console.log);
+                }
+
+        lPC.onnegotiationneeded = function(evt) {
+            console.log("onnegotiationneded: !", evt);
+                      //lPC.createOffer( localDescriptionCallback, console.log);
+                }
 
         lPC.onsignalingstatechange = function(evt) {
             console.log("signalstatechange: !" , evt);
@@ -105,23 +115,25 @@ function rtcSetConnection() {
             console.log("sC: 1" , evt);
         }
 
-				smsRegisterCallback("candidate", function(message) {
-						msg = JSON.parse(message);
-						console.log("got remote candidate", msg);
-						lPC.addIceCandidate(new RTCIceCandidate(msg));
-				});
+                smsRegisterCallback("candidate", function(sender, message) {
+                        msg = JSON.parse(message);
+                        console.log("got remote candidate from", sender);
+                        lPC.addIceCandidate(new RTCIceCandidate(msg));
+                });
 
-				smsRegisterCallback("sdp", function(message) {
-						msg = JSON.parse(message);
-						console.log("got remote offer", msg);
-						lPC.setRemoteDescription(new RTCSessionDescription(msg), 
-								function () {
-									lPC.createAnswer( localDescriptionCallback, console.log );
-								}
-							, console.log); // we got another peer's offer
-				});
+                smsRegisterCallback("sdp", function(sender, message) {
+                        msg = JSON.parse(message);
+                        console.log("got remote offer from ", sender);
+                        $('#remoteId').text(sender);
+                        lPC.setRemoteDescription(new RTCSessionDescription(msg),
+                                function () {
+                                    console.log("creating Answer");
+                                    lPC.createAnswer( localDescriptionCallback, console.log );
+                                }
+                            , console.log); // we got another peer's offer
+                });
 
-		return lPC;
+        return lPC;
 }
 
 
@@ -129,37 +141,48 @@ function rtcSetConnection() {
 
 <script>
 /**
-	Start the system when the page is loaded.
+    Start the system when the page is loaded.
 */
 $(document).ready( function () {
-	smsStartSystem();	
+    smsStartSystem();
+    $('#localId').text(myId);
 
-	// for each client already existing, we will createOffers and send them
-	peerConns = [];
+    // for each client already existing, we will createOffers and send them
+    peerConns = [];
   smsListClients(function (clients) {
-		console.log(clients);
-		for (i = 0; i < clients.length; i++) {
-				if (clients[i].s != myId) {
-							console.log("SETUP: trying to connect to ", clients[i].s);
-//							peerConns.push(rtcSetConnection());
-				}
-		}
-	});
+        console.log(clients);
+        wait = true;
+        for (i = 0; i < clients.length; i++) {
+                if (clients[i].s != myId) {
+                            console.log("SETUP: trying to connect to ", clients[i].s);
+                            $('#remoteId').text(clients[i].s);
+                            lpc = rtcSetConnection();
+                            lpc.triggerCreateOffer();                // this object should know to create offers
+                            peerConns.push(lpc);
+                            wait = false;
+                }
+        }
 
-	// then we wait for new clients waiting to join us
-	console.log("waiting for remote");
-//	rtcSetConnection();	
+        // then we wait for new clients waiting to join us, cause we couldn't find anyone to connect to
+        if (wait) {
+                console.log("waiting for remote");
+              rtcSetConnection();
+        }
+    });
+
 
 });
 
 window.onbeforeunload = function () {
-	console.log("almost dead");
-	smsStopSystem();
+    console.log("almost dead");
+    smsStopSystem();
 };
 
 </script>
-
-<div id="list1"></div>
+<h4>Local Id</h4>
+<p id="localId"></p>
+<h4>Remote Id</h4>
+<p id="remoteId"></p>
 <script>
 </script>
 </body>

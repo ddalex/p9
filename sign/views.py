@@ -2,7 +2,7 @@
 from django.views.decorators.csrf import csrf_exempt
 from django.core.exceptions import ValidationError
 from django.http import HttpResponse
-import datetime
+from datetime import datetime, timedelta
 import time
 import json
 
@@ -26,9 +26,12 @@ def clients(request):
         crtclient, created = Client.objects.get_or_create(
                 externid=request.GET['s'],
             )
-        crtclient.status = request.POST['x']
-        crtclient.updated = datetime.datetime.now()
+        crtclient.status = request.POST.get('x', 0)
+        crtclient.updated = datetime.now()
         crtclient.save()
+
+    # all clients that have not updated in the last 10 seconds are dead
+    Client.objects.filter(status=0).filter(updated__lt = datetime.now() - timedelta(seconds = 10)).update(status = 1)
 
     # list currently alive clients
     clients = Client.objects.filter(status = Client.STATUS_ALIVE).order_by("-updated")
@@ -38,7 +41,13 @@ def clients(request):
 @csrf_exempt
 @must_have_externid
 def messages(request):
-    crtclient = Client.objects.filter(externid=request.GET['s'])[0]
+    try:
+        crtclient = Client.objects.filter(externid=request.GET['s'])[0]
+        crtclient.updated = datetime.now()
+        crtclient.save()
+    except IndexError:
+        return HttpResponse(json.dumps([]))
+
 
     if request.method == "POST":
         try:
@@ -46,15 +55,15 @@ def messages(request):
                     client  = crtclient,
                     msgtype = request.POST['t'],
                     content = request.POST['d'],
-                    created = datetime.datetime.now(),
+                    created = datetime.now(),
                     );
         except KeyError:
             pass
 
-    queryset = Message.objects.filter()
+    queryset = Message.objects.exclude(client = crtclient)
 
     if 'since' in request.GET.keys() and float(request.GET['since']) > 0:
-        msg = queryset.filter(created__gte=datetime.datetime.fromtimestamp(float(request.GET['since']))).order_by("created")[:20]
+        msg = queryset.filter(created__gte=datetime.fromtimestamp(float(request.GET['since']))).order_by("created")[:20]
     else:
         msg = queryset.order_by("created")[:20]
     return HttpResponse(json.dumps([

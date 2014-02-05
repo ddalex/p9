@@ -49,7 +49,6 @@ function smsPostMessage(type, info, f, recipient ) {
 
 	myRequest.onreadystatechange = function() {
 		if (myRequest.readyState == XMLHttpRequest.DONE && myRequest.status == 200) {
-			console.log("POST: ", myRequest.responseText);
 			f(JSON.parse(myRequest.responseText));
 		}
 	};
@@ -67,10 +66,10 @@ function smsRegisterCallback(msgtype, callable) {
 	return callable;
 }
 
-function _smsDispatchMessage(type, data) {
+function _smsDispatchMessage(type, sender, data) {
 	if (type in msgCallbacks)
 		for (f in msgCallbacks[type]) {
-			msgCallbacks[type][f](data);
+			msgCallbacks[type][f](sender, data);
 		}
 }
 
@@ -78,7 +77,7 @@ function _smsProcessMessages(data) {
 	for (m in data) {
 		if (data[m].c > lastRefreshTime) {
 			lastRefreshTime = data[m].c;
-			_smsDispatchMessage(data[m].t, data[m].d);
+			_smsDispatchMessage(data[m].t, data[m].s, data[m].d);
 		}
 	}
 }
