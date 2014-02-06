@@ -4,7 +4,7 @@ var HOMEURL = "";
 
 var msgCallbacks = {}
 // start at most 5 seconds ago
-var lastRefreshTime = Math.floor(new Date().getTime() / 1000) - 5;
+var lastRefreshId = 0;
 
 
 
@@ -38,7 +38,7 @@ function smsGetMessages(f) {
 			f(JSON.parse(myRequest.responseText));
 		}
 	};
-	myRequest.open("GET", HOMEURL+"/messages?s="+encodeURIComponent(myId)+"&since=" + encodeURIComponent(lastRefreshTime), true);
+	myRequest.open("GET", HOMEURL+"/messages?s="+encodeURIComponent(myId)+"&since=" + encodeURIComponent(lastRefreshId), true);
 	myRequest.send();
 }
 
@@ -52,7 +52,7 @@ function smsPostMessage(type, info, f, recipient ) {
 			f(JSON.parse(myRequest.responseText));
 		}
 	};
-	myRequest.open("POST", HOMEURL+"/messages?s=" + encodeURIComponent(myId) + "&since=" + encodeURIComponent(lastRefreshTime), true);
+	myRequest.open("POST", HOMEURL+"/messages?s=" + encodeURIComponent(myId) + "&since=" + encodeURIComponent(lastRefreshId), true);
 	myRequest.setRequestHeader("Content-type","application/x-www-form-urlencoded");
 	myRequest.send("r=" + encodeURIComponent(recipient) + "&t="+encodeURIComponent(type)+"&d=" + encodeURIComponent(info));
 }
@@ -67,18 +67,19 @@ function smsRegisterCallback(msgtype, callable) {
 }
 
 function _smsDispatchMessage(type, sender, data) {
-	if (type in msgCallbacks)
+	if (type in msgCallbacks) {
 		for (f in msgCallbacks[type]) {
 			msgCallbacks[type][f](sender, data);
 		}
+	}
 }
 
 function _smsProcessMessages(data) {
 	for (m in data) {
-		if (data[m].c > lastRefreshTime) {
-			lastRefreshTime = data[m].c;
-			_smsDispatchMessage(data[m].t, data[m].s, data[m].d);
+		if (data[m].c > lastRefreshId) {
+			lastRefreshId = data[m].c;
 		}
+	    _smsDispatchMessage(data[m].t, data[m].s, data[m].d);
 	}
 }
 
@@ -111,8 +112,8 @@ var handle;		// this is the handle for the interative setInterval
 function smsStartSystem() {
 	console.log("starting system");
 	_smsUpdateClient();		// signal we're alive
-	handle = setInterval(function() { 
-			smsGetMessages( _smsProcessMessages ) },   
+	handle = setInterval(function() {
+			smsGetMessages( _smsProcessMessages ) },
 			5000);
 }
 

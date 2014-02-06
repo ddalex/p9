@@ -16,13 +16,13 @@ def must_have_externid(function):
         return function(request, *args, **kwargs)
 
     return wrapper
-    
+
 
 @csrf_exempt
 @must_have_externid
 def clients(request):
     if request.method == "POST":
-        # update client 
+        # update client
         crtclient, created = Client.objects.get_or_create(
                 externid=request.GET['s'],
             )
@@ -36,7 +36,7 @@ def clients(request):
     # list currently alive clients
     clients = Client.objects.filter(status = Client.STATUS_ALIVE).order_by("-updated")
     return HttpResponse(json.dumps([{"s" : x.externid} for x in clients]))
-    
+
 
 @csrf_exempt
 @must_have_externid
@@ -60,15 +60,15 @@ def messages(request):
         except KeyError:
             pass
 
-    queryset = Message.objects.exclude(client = crtclient)
+    queryset = Message.objects.filter(client__status = Client.STATUS_ALIVE).exclude(client = crtclient)
 
     if 'since' in request.GET.keys() and float(request.GET['since']) > 0:
-        msg = queryset.filter(created__gte=datetime.fromtimestamp(float(request.GET['since']))).order_by("created")[:20]
+        msg = queryset.filter(id__gt=request.GET['since']).order_by("id")[:20]
     else:
-        msg = queryset.order_by("created")[:20]
+        msg = queryset.order_by("id")[:20]
     return HttpResponse(json.dumps([
-        {"s": x.client.externid, "t" : x.msgtype, "d" : x.content, 
-         "c" : int(time.mktime(x.created.timetuple()))} for x in msg]), 
+        {"s": x.client.externid, "t" : x.msgtype, "d" : x.content,
+         "c" : x.id} for x in msg]),
       content_type="application/json")
 
 
