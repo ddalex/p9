@@ -51,16 +51,21 @@ def messages(request):
 
     if request.method == "POST":
         try:
+            rl = Client.objects.filter(status = Client.STATUS_ALIVE).filter(externid = reqeuest.POST.get('r',''))
+            if rl.count() != 1:
+                raise ValidationError("Recipient MUST be alive") 
+
             msg = Message.objects.get_or_create(
                     client  = crtclient,
+                    recipient = r,
                     msgtype = request.POST['t'],
                     content = request.POST['d'],
                     created = datetime.now(),
                     );
-        except KeyError:
-            pass
+        except e:
+            raise e
 
-    queryset = Message.objects.filter(client__status = Client.STATUS_ALIVE).exclude(client = crtclient)
+    queryset = Message.objects.filter(client__status = Client.STATUS_ALIVE).filter(recipient = crtclient)
 
     if 'since' in request.GET.keys() and float(request.GET['since']) > 0:
         msg = queryset.filter(id__gt=request.GET['since']).order_by("id")[:20]

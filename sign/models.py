@@ -18,7 +18,7 @@ class Client(models.Model):
 
 class Message(models.Model):
     client  = models.ForeignKey(Client)
-    recipient = models.ForeignKey(Client, related_name = "recipient", null=True)
+    recipient = models.ForeignKey(Client, related_name = "recipient")
     msgtype = models.CharField(max_length=16)
     content = models.CharField(max_length=4096)
     created = models.DateTimeField()

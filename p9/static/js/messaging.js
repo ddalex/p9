@@ -42,10 +42,21 @@ function smsGetMessages(f) {
 	myRequest.send();
 }
 
-function smsPostMessage(type, info, f, recipient ) {
-	var myRequest = new XMLHttpRequest();
-	if (f == undefined)
+function smsPostMessage(recipient, type, data, f ) {
+
+	if (f === undefined)
 		f = _smsProcessMessages;
+    
+    if (data === undefined)
+        throw "smsPostMessage: Must specify data to be sent"
+    
+    if (type === undefined)
+        throw "smsPostMessagse: Must specify message type"
+
+    if (recipient === undefined)
+        throw "smsPostMessage: Cannot send message without recipient";
+
+	var myRequest = new XMLHttpRequest();
 
 	myRequest.onreadystatechange = function() {
 		if (myRequest.readyState == XMLHttpRequest.DONE && myRequest.status == 200) {
@@ -54,22 +65,27 @@ function smsPostMessage(type, info, f, recipient ) {
 	};
 	myRequest.open("POST", HOMEURL+"/messages?s=" + encodeURIComponent(myId) + "&since=" + encodeURIComponent(lastRefreshId), true);
 	myRequest.setRequestHeader("Content-type","application/x-www-form-urlencoded");
-	myRequest.send("r=" + encodeURIComponent(recipient) + "&t="+encodeURIComponent(type)+"&d=" + encodeURIComponent(info));
+	myRequest.send("r=" + encodeURIComponent(recipient) + "&t="+encodeURIComponent(type)+"&d=" + encodeURIComponent(data));
 }
 
-function smsRegisterCallback(msgtype, callable) {
+function smsRegisterCallback(msgtype, callable, sender) {
+    o = { sender: sender, callable: callable }
+
 	if (msgtype in msgCallbacks) {
-		msgCallbacks[msgtype].concat([callable]);
+		msgCallbacks[msgtype].concat([o]);        
 	} else {
-		msgCallbacks[msgtype] = [callable];
+		msgCallbacks[msgtype] = [o];
 	}
 	return callable;
 }
 
 function _smsDispatchMessage(type, sender, data) {
 	if (type in msgCallbacks) {
-		for (f in msgCallbacks[type]) {
-			msgCallbacks[type][f](sender, data);
+		for (o in msgCallbacks[type]) {
+            f = o.callable
+            s = o.sender
+            if (s == sender || s === undefined)
+    			msgCallbacks[type][f](sender, data);
 		}
 	}
 }
