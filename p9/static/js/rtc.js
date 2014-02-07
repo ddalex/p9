@@ -136,15 +136,3 @@ function rtcGetConnection(role, remoteId) {
 }
 
 
-</script>
-
-<script>
-/**
-    Start the system when the page is loaded.
-*/
-
-function logoutput(text) {
-    $('#output').text(text + "<br/>" + $('#output').text());
-}
-
-
