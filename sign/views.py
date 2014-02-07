@@ -11,9 +11,14 @@ from sign.models import Message, Client
 
 def must_have_externid(function):
     def wrapper(request, *args, **kwargs):
-        if not 's' in request.GET.keys():
-            raise ValidationError("Must specify client Id")
-        return function(request, *args, **kwargs)
+        try:
+            if not 's' in request.GET.keys():
+                raise ValidationError("Must specify client Id")
+            return function(request, *args, **kwargs)
+        except ValidationError as e:
+            response = HttpResponse(content_type = "application/json")
+            response.status_code=403
+            return response
 
     return wrapper
 
@@ -21,6 +26,17 @@ def must_have_externid(function):
 @csrf_exempt
 @must_have_externid
 def clients(request):
+    '''
+    Clients API:
+        GET: list alive clients
+            no parameters
+            returns list of alive clients, including self
+
+        POST: create / update client
+            GET parametr 's' Mandatory - the client ID
+            POST parameter 'x' - the status; default:0 - alive, 1 - dead
+            return list of alive clients, including self
+    '''
     if request.method == "POST":
         # update client
         crtclient, created = Client.objects.get_or_create(
@@ -35,12 +51,25 @@ def clients(request):
 
     # list currently alive clients
     clients = Client.objects.filter(status = Client.STATUS_ALIVE).order_by("-updated")
-    return HttpResponse(json.dumps([{"s" : x.externid} for x in clients]))
+    return HttpResponse(json.dumps([{"s" : x.externid} for x in clients]), content_type='application/json')
 
 
 @csrf_exempt
 @must_have_externid
 def messages(request):
+    '''
+    Messages API: 
+        Restriction: must have an alive client;
+        GET: list available mesesages
+            's' Mandatory - client id
+            'since' Optional - the last message index that was processed on client side
+
+        POST: submit a new message
+            GET parameter 's' Mandatory - the client id
+            POST parameter 'r' Mandatory - receiver client id, must be alive !
+            POST parameter 't' Mandatory - message type
+            POST parameter 'd' Mandatory - message data             
+    '''
     try:
         crtclient = Client.objects.filter(externid=request.GET['s'])[0]
         crtclient.updated = datetime.now()
@@ -51,19 +80,21 @@ def messages(request):
 
     if request.method == "POST":
         try:
-            rl = Client.objects.filter(status = Client.STATUS_ALIVE).filter(externid = reqeuest.POST.get('r',''))
+            rl = Client.objects.filter(status = Client.STATUS_ALIVE).filter(externid = request.POST.get('r',''))
             if rl.count() != 1:
                 raise ValidationError("Recipient MUST be alive") 
 
             msg = Message.objects.get_or_create(
                     client  = crtclient,
-                    recipient = r,
+                    recipient = rl[0],
                     msgtype = request.POST['t'],
                     content = request.POST['d'],
                     created = datetime.now(),
                     );
-        except e:
-            raise e
+        except Exception as e:
+            response = HttpResponse(e, content_type = "application/json")
+            response.status_code=403
+            return response
 
     queryset = Message.objects.filter(client__status = Client.STATUS_ALIVE).filter(recipient = crtclient)
 
