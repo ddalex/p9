@@ -81,12 +81,13 @@ function smsRegisterCallback(msgtype, callable, sender) {
 
 function _smsDispatchMessage(type, sender, data) {
 	if (type in msgCallbacks) {
-		for (o in msgCallbacks[type]) {
-            f = o.callable
-            s = o.sender
-            if (s == sender || s === undefined)
-    			msgCallbacks[type][f](sender, data);
-		}
+	    for (i = 0; i < msgCallbacks[type].length; i++) {
+                f = msgCallbacks[type][i].callable
+                s = msgCallbacks[type][i].sender
+		console.log(o, f, s);
+                if (s == sender || s === undefined)
+    			f(sender, data);
+	    }
 	}
 }
 

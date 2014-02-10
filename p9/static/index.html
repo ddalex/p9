@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html ng-app="vision">
+<html ng-app="vision" ng-controller="viewCtrl">
 <!-- vim: set tabstop=4 expandtab softab -->
 <head>
     <title>Vision</title>
@@ -22,6 +22,15 @@
 h4 { display: inline; margin-left: 2em; margin-top: 1em; };
 
 </style>
+<script>
+Array.prototype._indexOfS = function(element) {
+    var i;
+    for (i = 0; i < this.length; i++)
+        if (element.s === this[i].s)
+            return i;
+    return -1;
+}
+</script>
 <script src="js/jquery-2.0.3.min.js"></script>
 <script src="js/angular.min.js"></script>
 <script src="js/ui-bootstrap-tpls-0.10.0.min.js"></script>
@@ -30,8 +39,8 @@ h4 { display: inline; margin-left: 2em; margin-top: 1em; };
 <script>
 
 var visionApp = angular.module('vision', ['ui.bootstrap']);
-/* use as a service */
-//visionApp.factory('', function () {
+
+//visionApp.factory('peerservice', function () {
 //});
 
 
@@ -53,62 +62,101 @@ function callWait() {
     // we want to receive calls 
     smsRegisterCallback("sdp", function receiveSDP(sender, message) {
 
-        msg = JSON.parse(message);
-        console.log("got remote call from ", sender, msg);
+    msg = JSON.parse(message);
+    console.log("got remote call from ", sender, msg);
 
-        // TODO ? 
-        lpc = rtcGetConnection( ROLE.RECEIVER, sender );
+    // do not process answers !
+    lPeers = []
+    scope = angular.element(document).scope();
+    scope.$apply( function () { lPeers = scope.peers });
 
-        lpc.setRemoteDescription(new RTCSessionDescription(msg),
-            function () {
+    for (i = 0; i < peers.length; i++)
+        if (lPeers[i].s == sender)
+            return;
+
+    lpc = rtcGetConnection( ROLE.RECEIVER, sender );
+
+    lpc.setRemoteDescription(new RTCSessionDescription(msg),
+        function () {
                 console.log("success setting remote");
                 lpc.createSDPResponse();
-               }, console.log); // we got another peer's offer
-       });
+        }, console.log); // we got another peer's offer
+    });
 }
 
-var connPeers = [];
+visionApp.controller('viewCtrl', function($scope) {
+    $scope.peers = [];
+    $scope.remotes = [];
 
-function updateRemoteClients(clients) {
-    newclients = []
-    // update the potential peer list
-    for (i = 0 ; i < clients.length; i++) {
-       	if (clients[i].s != myId && connPeers.indexOf(clients[i].s) < 0) {
-				  newclients.push(clients[i]);         
-        }        
+    $scope.triggerDisconnect = function (r) {
+        console.log("trigger disconnection");
+    }    
+
+    $scope.triggerConnect = function (r) {
+        console.log("trigger connection to ", r);
+
+        addConnection(r);
+        callRemote(r.s);
+        p = this.remotes._indexOfS(r);
+        if (p > -1)
+        this.remotes.splice(p, 1);
     }
 
-    // clean up peers that died in the meantime
-    newConnPeers = []
-    for (i = 0; i < connPeers.length; i++) {
-        if (clients.indexOf(connPeers[i]) < 0) {
-          disconnectPeer(connPeers[i]);
-        }
-        else {
-          newConnPeers.push(connPeers[i]);
+
+    $scope.removeConnection = function (c) {
+        p = this.peers._indexOfS(c);
+        if (p > -1) {
+            this.peers.splice(p, 1);
         }
     }
-    connPeers = newConnPeers;
 
-    e = $('#remotesCtrl')[0];
-    scope = angular.element(e).scope()
-    scope.$apply( function ()  { 
-        scope.remotes = newclients;
-    })
- 
-    e = $('#peersCtrl')[0];
-    scope = angular.element(e).scope()
-    scope.$apply( function ()  { 
-        scope.remotes = connPeers;
-    })
- 
-    // we will refresh the client list
-    setTimeout(function() { smsListClients(updateRemoteClients); }, 2000);
+    $scope.addConnection = function (c) {
+        p = this.peers._indexOfS(c);
+        if (p == -1)
+            this.peers.push(c);
+    }
+
+    $scope.updateRemoteClients = function(clients) {
+        if (clients === undefined) 
+            return;
+
+        $scope.remotes = [];
+
+        for (i = 0 ; i < clients.length; i++) {
+            j = clients[i];
+            if (j.s != myId && $scope.peers._indexOfS(j) < 0) {
+                $scope.remotes.push(j);         
+            }        
+        }
+
+        for (i = 0; i < $scope.peers.length; i++) {
+            if (clients._indexOfS($scope.peers[i]) < 0) {
+                    $scope.removeConnection(peers[i])
+            }
+            else {
+                    $scope.addConnection(peers[i]);
+            }
+        }
+            
+
+        // we will refresh the client list
+        setTimeout(function() { smsListClients($scope.updateRemoteClients); }, 2000);
+
+        console.log("new remotes 2", $scope.remotes);
+        $scope.$digest();
+    }
+
+});
+
+
+function ext_updateRemoteClients(clients) { 
+    scope = angular.element(document).scope();
+    scope.updateRemoteClients(clients);
+    scope.$digest();
 }
-
 
 /**
-	Start the system
+    Start the system
 */
 
 $(document).ready( function () {
@@ -116,8 +164,11 @@ $(document).ready( function () {
     $('#localId').text(myId);
 
     // for each client already existing, we will createOffers and send them
-    smsListClients(updateRemoteClients);
+    smsListClients(ext_updateRemoteClients);
 
+
+        // wait calls
+        callWait();    
 });
 
 window.onbeforeunload = function () {
@@ -135,23 +186,39 @@ window.onbeforeunload = function () {
 
 <body role="main">
 <div class="container">
+    <div class="row">
+    <h4>Chat</h4><div class="pull-right col-md-10"><textarea id="chat" readonly rows="5" class="col-md-10">
+    </textarea></div>
+    </div>
+
+<hr/>
   <div class="row">
   <h4>Local Id</h4><p id="localId" class="inline"></p>
   </div>
+
 <hr/>
-  <div id="remotesCtrl" ng-controller="remotesCtrl" class="row">
+  <div class="row">
    <div> 
-    <script> 
-    
-    
-    visionApp.controller('remotesCtrl', function($scope) {
-        $scope.remotes = [];
-        $scope.triggerConnect = function (r) {
-            console.log("trigger connection to ", r);
-        }
-    });
-    
-    </script>
+
+    <h4>Peer Id List</h4>
+    <div id="idList">
+        <div ng-repeat="r in peers|orderBy:'s'" class="panel panel-default" ng-click="test()">
+
+            <div class="panel-heading panel-title" style="padding-bottom: 1.4em" >
+            <h4>{{r.s}}</h4>
+            <button type="button" class="btn btn-primary pull-right " ng-model="singleModel" btn-checkbox btn-checkbox-true="1" btn-checkbox-false="0" ng-click="triggerDisconnect(r)"> Disconnect </button>
+            </div>
+
+        </div>
+    </div>
+   </div>
+  </div>
+
+
+<hr/>
+  <div class="row">
+   <div> 
+
     <h4>Remote Id List</h4>
     <div id="idList">
         <div ng-repeat="r in remotes|orderBy:'s'" class="panel panel-default" >
@@ -167,33 +234,6 @@ window.onbeforeunload = function () {
   </div>
 
 <hr/>
-
-  <div id="peersCtrl" ng-controller="peersCtrl" class="row">
-   <div> 
-    <script> 
-    
-    
-    visionApp.controller('peersCtrl', function($scope) {
-        $scope.peers = [];
-        $scope.test = function () {
-            console.log("trigger connection");
-        }
-    });
-    
-    </script>
-    <h4>Peer Id List</h4>
-    <div id="idList">
-        <div ng-repeat="r in peers|orderBy:'s'" class="panel panel-default" ng-click="test()">
-
-            <div class="panel-heading panel-title" style="padding-bottom: 1.4em" >
-            <h4>{{r.s}}</h4>
-            <button type="button" class="btn btn-primary pull-right " ng-model="singleModel" btn-checkbox btn-checkbox-true="1" btn-checkbox-false="0" > Disconnect </button>
-            </div>
-
-        </div>
-    </div>
-   </div>
-  </div>
  
   <div id="text" class="row">
   </div>

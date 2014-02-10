@@ -94,7 +94,7 @@ function rtcGetConnection(role, remoteId) {
             lPC.setLocalDescription(sdp,
                 function () {
                     console.log("rtc: sending local description ", sdp);
-                    smsPostMessage("sdp", JSON.stringify(sdp)); // success, we post our description
+                    smsPostMessage(remoteId, "sdp", JSON.stringify(sdp)); // success, we post our description
                 },
                 function (error) { console.log("rtc: ERR: setLocalDescription ", error) } // errorCallback
         )}
