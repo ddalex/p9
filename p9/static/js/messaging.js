@@ -6,7 +6,7 @@ var msgCallbacks = {}
 // start at most 5 seconds ago
 var lastRefreshId = 0;
 
-
+var smsDebug = 0;
 
 function _smsCreateUUID() {
     // http://www.ietf.org/rfc/rfc4122.txt
@@ -27,8 +27,8 @@ var myId = _smsCreateUUID();
 
 // just for debug
 (function (){
- console.log("My ID is ", myId);
- })();
+ if(smsDebug)console.log("My ID is ", myId);
+})();
 
 function smsGetMessages(f) {
     var myRequest = new XMLHttpRequest();
@@ -70,7 +70,7 @@ function smsPostMessage(recipient, type, data, f ) {
 
 function smsRegisterCallback(msgtype, callable, sender) {
     o = { sender: sender, callable: callable }
-    console.log("sms: registering callback for " + msgtype + " : ", o);
+    if(smsDebug)console.log("sms: registering callback for " + msgtype + " : ", o);
     if (msgtype in msgCallbacks) {
         msgCallbacks[msgtype].push(o);
     } else {
@@ -81,12 +81,12 @@ function smsRegisterCallback(msgtype, callable, sender) {
 
 function _smsDispatchMessage(type, sender, data) {
     if (type in msgCallbacks) {
-        console.log("sms: callbacks for " + type, sender, msgCallbacks[type]);
+        if(smsDebug)console.log("sms: callbacks for " + type, sender, msgCallbacks[type]);
         for (i = 0; i < msgCallbacks[type].length; i++) {
                 f = msgCallbacks[type][i].callable
                 s = msgCallbacks[type][i].sender
                 if (s == sender || s === undefined) {
-                console.log("sms:   matched " + i + " filter ", msgCallbacks[type][i]);
+                if(smsDebug)console.log("sms:   matched " + i + " filter ", msgCallbacks[type][i]);
                      f(sender, data);
                 }
         }
@@ -129,7 +129,7 @@ function smsListClients(f) {
 var handle;        // this is the handle for the interative setInterval
 
 function smsStartSystem() {
-    console.log("starting system");
+    if(smsDebug)console.log("starting system");
     _smsUpdateClient();        // signal we're alive
     handle = setInterval(function() {
             smsGetMessages( _smsProcessMessages ) },

@@ -44,9 +44,9 @@ var visionApp = angular.module('vision', ['ui.bootstrap']);
 //});
 
 
-function callRemote(remoteId) {
+function callRemote(remoteId, stateCB, dataCB) {
     console.log("main: we call ", remoteId);
-    lpc = rtcGetConnection( ROLE.CALLER, remoteId);
+    var lpc = rtcGetConnection( ROLE.CALLER, remoteId, stateCB, dataCB);
 }
 
 function callWait() {
@@ -58,7 +58,6 @@ function callWait() {
         msg = JSON.parse(message);
     
         // do not process answers !
-        lPeers = []
         scope = angular.element(document).scope();
         lPeers = scope.peers;
     
@@ -68,7 +67,7 @@ function callWait() {
 
         console.log("got remote call from ", sender, msg);
     
-        lpc = rtcGetConnection( ROLE.RECEIVER, sender );
+        var lpc = rtcGetConnection( ROLE.RECEIVER, sender );
     
         lpc.setRemoteDescription(new RTCSessionDescription(msg),
             function () {
@@ -90,13 +89,18 @@ visionApp.controller('viewCtrl', function($scope) {
 
 				p = this.peers._indexOfS(r);
 				if (p > -1) this.remote.splice(p, 1);
-    }    
+    }
 
     $scope.triggerConnect = function (r) {
         console.log("trigger connection to ", r);
 
-        $scope.addConnection(r);
-        callRemote(r.s);
+        callRemote(r.s, function (state) { 
+						console.log("state update ", state);
+						$scope.addConnection(r.s);
+					}, function (data) {
+						console.log("recv " + data);
+					}
+				);
         p = this.remotes._indexOfS(r);
         if (p > -1) this.remotes.splice(p, 1);
     }
