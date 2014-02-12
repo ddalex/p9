@@ -132,6 +132,27 @@ function rtcGetConnection(role, remoteId) {
             console.log("rtc: remoteremovedstream: !" , evt);
         }
 
+        // we need to receive any renegociation from the remote ID
+        smsRegisterCallback("sdp", function (sender, message) {
+                console.log("renegociation with our designed remote");
+                msg = JSON.parse(message);
+                lPC.setRemoteDescription(new RTCSessionDescription(msg),
+                    function () { console.log("success setting remote"); },
+                    function (err) { console.log(err) }
+                );
+            } ,
+            remoteId);
+
+        // we want to register the candidates from the remote partner
+        smsRegisterCallback("candidate", function receiveCandidates(sender, message) {
+                msg = JSON.parse(message);
+                var candidate = new RTCIceCandidate({sdpMLineIndex: msg.sdpMLineIndex, 
+                                        candidate: msg.candidate});
+                lpc.addIceCandidate(candidate);
+            }, 
+            remoteId);
+
+
         return lPC;
 }
 
