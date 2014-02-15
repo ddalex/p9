@@ -1,8 +1,8 @@
-/* vim: set tabstop=4 expandtab softab */
+/* vim: set tabstop=4 expandtab softab: */
 //var HOMEURL = "http://localhost:8000";
 var HOMEURL = "";
 
-var msgCallbacks = {}
+var _smsMsgCallbacks = {}
 // start at most 5 seconds ago
 var lastRefreshId = 0;
 
@@ -23,11 +23,11 @@ function _smsCreateUUID() {
     return uuid;
 }
 
-var myId = _smsCreateUUID();
+var smsMyId = _smsCreateUUID();
 
 // just for debug
 (function (){
- if(smsDebug)console.log("My ID is ", myId);
+ if(smsDebug)console.log("My ID is ", smsMyId);
 })();
 
 function smsGetMessages(f) {
@@ -38,7 +38,7 @@ function smsGetMessages(f) {
             f(JSON.parse(myRequest.responseText));
         }
     };
-    myRequest.open("GET", HOMEURL+"/messages?s="+encodeURIComponent(myId)+"&since=" + encodeURIComponent(lastRefreshId), true);
+    myRequest.open("GET", HOMEURL+"/messages?s="+encodeURIComponent(smsMyId)+"&since=" + encodeURIComponent(lastRefreshId), true);
     myRequest.send();
 }
 
@@ -46,10 +46,10 @@ function smsPostMessage(recipient, type, data, f ) {
 
     if (f === undefined)
         f = _smsProcessMessages;
-    
+
     if (data === undefined)
         throw "smsPostMessage: Must specify data to be sent"
-    
+
     if (type === undefined)
         throw "smsPostMessage: Must specify message type"
 
@@ -63,7 +63,7 @@ function smsPostMessage(recipient, type, data, f ) {
             f(JSON.parse(myRequest.responseText));
         }
     };
-    myRequest.open("POST", HOMEURL+"/messages?s=" + encodeURIComponent(myId) + "&since=" + encodeURIComponent(lastRefreshId), true);
+    myRequest.open("POST", HOMEURL+"/messages?s=" + encodeURIComponent(smsMyId) + "&since=" + encodeURIComponent(lastRefreshId), true);
     myRequest.setRequestHeader("Content-type","application/x-www-form-urlencoded");
     myRequest.send("r=" + encodeURIComponent(recipient) + "&t="+encodeURIComponent(type)+"&d=" + encodeURIComponent(data));
 }
@@ -71,22 +71,27 @@ function smsPostMessage(recipient, type, data, f ) {
 function smsRegisterCallback(msgtype, callable, sender) {
     o = { sender: sender, callable: callable }
     if(smsDebug)console.log("sms: registering callback for " + msgtype + " : ", o);
-    if (msgtype in msgCallbacks) {
-        msgCallbacks[msgtype].push(o);
+    if (msgtype in _smsMsgCallbacks) {
+        _smsMsgCallbacks[msgtype].push(o);
     } else {
-        msgCallbacks[msgtype] = [o];
+        _smsMsgCallbacks[msgtype] = [o];
     }
-    return callable;
+    return _smsMsgCallbacks[msgtype].indexOf(o);
+}
+
+function smsUnregisterCallback(msgtype, idx) {
+    console.log("sms: updating " + msgtype + " pos ", idx);
+    _smsMsgCallbacks[msgtype].splice(idx, 1);
 }
 
 function _smsDispatchMessage(type, sender, data) {
-    if (type in msgCallbacks) {
-        if(smsDebug)console.log("sms: callbacks for " + type, sender, msgCallbacks[type]);
-        for (i = 0; i < msgCallbacks[type].length; i++) {
-                f = msgCallbacks[type][i].callable
-                s = msgCallbacks[type][i].sender
+    if (type in _smsMsgCallbacks) {
+        if(smsDebug)console.log("sms: callbacks for " + type, sender, _smsMsgCallbacks[type]);
+        for (i = 0; i < _smsMsgCallbacks[type].length; i++) {
+                f = _smsMsgCallbacks[type][i].callable
+                s = _smsMsgCallbacks[type][i].sender
                 if (s == sender || s === undefined) {
-                if(smsDebug)console.log("sms:   matched " + i + " filter ", msgCallbacks[type][i]);
+                if(smsDebug)console.log("sms:   matched " + i + " filter ", _smsMsgCallbacks[type][i]);
                      f(sender, data);
                 }
         }
@@ -108,7 +113,7 @@ function _smsUpdateClient(isdead) {
 
     var myRequest = new XMLHttpRequest();
 
-    myRequest.open("POST", HOMEURL+"/clients?s=" + encodeURIComponent(myId), false);
+    myRequest.open("POST", HOMEURL+"/clients?s=" + encodeURIComponent(smsMyId), false);
     myRequest.setRequestHeader("Content-type","application/x-www-form-urlencoded");
     myRequest.send("x="+encodeURIComponent(isdead));
 }
@@ -121,7 +126,7 @@ function smsListClients(f) {
             f(JSON.parse(myRequest.responseText));
         }
     };
-    myRequest.open("GET", HOMEURL+"/clients?s="+encodeURIComponent(myId), true);
+    myRequest.open("GET", HOMEURL+"/clients?s="+encodeURIComponent(smsMyId), true);
     myRequest.send();
 }
 
@@ -133,7 +138,7 @@ function smsStartSystem() {
     _smsUpdateClient();        // signal we're alive
     handle = setInterval(function() {
             smsGetMessages( _smsProcessMessages ) },
-            5000);
+            1000);
 }
 
 function smsStopSystem() {

@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html ng-app="vision" ng-controller="viewCtrl">
-<!-- vim: set tabstop=4 expandtab softab -->
+<!-- vim: set tabstop=4 expandtab softab ai: -->
 <head>
     <title>Vision</title>
     <meta charset="utf-8">
@@ -22,15 +22,6 @@
 h4 { display: inline; margin-left: 2em; margin-top: 1em; };
 
 </style>
-<script>
-Array.prototype._indexOfS = function(element) {
-    var i;
-    for (i = 0; i < this.length; i++)
-        if (element.s === this[i].s)
-            return i;
-    return -1;
-}
-</script>
 <script src="js/jquery-2.0.3.min.js"></script>
 <script src="js/angular.min.js"></script>
 <script src="js/ui-bootstrap-tpls-0.10.0.min.js"></script>
@@ -38,98 +29,135 @@ Array.prototype._indexOfS = function(element) {
 <script src="js/rtc.js"></script>
 <script>
 
+Array.prototype._indexOfS = function(element) {
+    var i;
+    for (i = 0; i < this.length; i++)
+        if (element.s === this[i].s)
+            return i;
+    return -1;
+}
+
+
 var visionApp = angular.module('vision', ['ui.bootstrap']);
 
-//visionApp.factory('peerservice', function () {
-//});
-
-
-function callRemote(remoteId, stateCB, dataCB) {
-    console.log("main: we call ", remoteId);
-    var lpc = rtcGetConnection( ROLE.CALLER, remoteId, stateCB, dataCB);
-}
-
-function callWait() {
-    console.log("main: we wait ");
-
-    // we want to receive calls 
-    smsRegisterCallback("sdp", function receiveSDP(sender, message) {
-    
-        msg = JSON.parse(message);
-    
-        // do not process answers !
-        scope = angular.element(document).scope();
-        lPeers = scope.peers;
-    
-        for (i = 0; i < lPeers.length; i++)
-            if (lPeers[i].s == sender)
-                return;
-
-        console.log("got remote call from ", sender, msg);
-    
-        var lpc = rtcGetConnection( ROLE.RECEIVER, sender );
-    
-        lpc.setRemoteDescription(new RTCSessionDescription(msg),
-            function () {
-                    console.log("success setting remote");
-                    lpc.createSDPResponse();
-            }, console.log); // we got another peer's offer
-    });
-}
 
 visionApp.controller('viewCtrl', function($scope) {
+    // both arrays hold "r" objects
     $scope.peers = [];
     $scope.remotes = [];
 
+    $scope._callRemote = function (r, stateCB, dataCB) {
+        console.log("main: we call ", r.s);
+        r.lpc = rtcGetConnection( ROLE.CALLER, r.s, function (state) { stateCB(r, state); }, dataCB);
+    }
+
+    // waiting generates it's own r
+    $scope.callWait = function (stateCB, dataCB) {
+        // we want to receive calls
+        smsRegisterCallback("sdp", function receiveSDP(sender, message) {
+            var i;
+            var msg = JSON.parse(message);
+
+            for (i = 0; i < $scope.peers.length; i++)
+                if ($scope.peers[i].s == sender)
+                    return;
+
+            var r = undefined;
+            for (i = 0; i < $scope.remotes.length; i++)
+                if ($scope.remotes[i].s == sender) {
+                  r = $scope.remotes[i];
+                }
+
+            if (r === undefined) {
+              // we don't accept calls from unregistered peers
+              throw "Cannot accept call from unknown peer " + sender;
+            }
+            console.log("got remote call from ", r, msg);
+
+            r.lpc = rtcGetConnection( ROLE.RECEIVER, sender, function(state) { stateCB(r, state); }, dataCB );
+
+            r.lpc.setRemoteDescription(new RTCSessionDescription(msg),
+                function () {
+                        console.log("success setting remote");
+                        r.lpc.createSDPResponse();
+                }, console.log); // we got another peer's offer
+         });
+    }
+
+
+    $scope._p2pConnectionStateChange = function (r, state) {
+        // if r in remotes, we expect a connect
+        if ( $scope.remotes._indexOfS(r) >= 0 ) {
+            // we process the connect request
+            if (state === "connected") {
+                console.log("we have a connection ");
+                $scope.addConnection(r);
+                $scope.$digest();
+            }
+        }
+        // if r in peers, we expect a disconnect
+        else if ( $scope.peers._indexOfS(r) >= 0 ) {
+            if (state === "disconnected") {
+                console.log("remote disconnected ");
+                $scope.removeConnection(r);
+                $scope.$digest();
+            }
+        }
+        else {
+          console.log("got a ", state, " for ", r);
+        }
+    }
+
     $scope.triggerDisconnect = function (r) {
         console.log("trigger disconnection");
-				$scope.removeConnection(r);
-
-				// TODO: trigger rtc disconnect
-
-				p = this.peers._indexOfS(r);
-				if (p > -1) this.remote.splice(p, 1);
+         // TODO: trigger rtc disconnect
+         r.lpc.close();
+         $scope.removeConnection(r);
     }
 
     $scope.triggerConnect = function (r) {
         console.log("trigger connection to ", r);
+        $scope.addConnection(r);
 
-        callRemote(r.s, function (state) { 
-						console.log("state update ", state);
-						$scope.addConnection(r.s);
-					}, function (data) {
-						console.log("recv " + data);
-					}
-				);
-        p = this.remotes._indexOfS(r);
-        if (p > -1) this.remotes.splice(p, 1);
+        $scope._callRemote(r, $scope._p2pConnectionStateChange,
+            function (data) {
+                       console.log("recv " + data);
+            });
     }
 
 
     $scope.removeConnection = function (c) {
-        p = this.peers._indexOfS(c);
+        var p = $scope.peers._indexOfS(c);
         if (p > -1) {
-            this.peers.splice(p, 1);
+            $scope.peers.splice(p, 1);
         }
+
+        var p = $scope.remotes._indexOfS(c);
+        if (p == -1)
+          $scope.remotes.push(p);
     }
 
     $scope.addConnection = function (c) {
-        p = this.peers._indexOfS(c);
+        var p = $scope.peers._indexOfS(c);
         if (p == -1)
-            this.peers.push(c);
+            $scope.peers.push(c);
+
+        var p = $scope.remotes._indexOfS(c);
+        if (p > -1)
+          $scope.remotes.splice(p, 1);
     }
 
     $scope.updateRemoteClients = function(clients) {
-        if (clients === undefined) 
+        if (clients === undefined)
             return;
 
         $scope.remotes = [];
 
         for (i = 0 ; i < clients.length; i++) {
             j = clients[i];
-            if (j.s != myId && $scope.peers._indexOfS(j) < 0) {
-                $scope.remotes.push(j);         
-            }        
+            if (j.s != smsMyId && $scope.peers._indexOfS(j) < 0) {
+                $scope.remotes.push(j);
+            }
         }
 
         for (i = 0; i < $scope.peers.length; i++) {
@@ -137,10 +165,10 @@ visionApp.controller('viewCtrl', function($scope) {
                     $scope.removeConnection($scope.peers[i])
             }
         }
-            
+
 
         // we will refresh the client list
-        setTimeout(function() { smsListClients($scope.updateRemoteClients); }, 5000);
+        setTimeout(function() { smsListClients($scope.updateRemoteClients); }, 2500);
 
         $scope.$digest();
     }
@@ -148,8 +176,8 @@ visionApp.controller('viewCtrl', function($scope) {
 });
 
 
-function ext_updateRemoteClients(clients) { 
-    scope = angular.element(document).scope();
+
+function ext_updateRemoteClients(scope, clients) {
     scope.updateRemoteClients(clients);
     scope.$digest();
 }
@@ -159,15 +187,19 @@ function ext_updateRemoteClients(clients) {
 */
 
 $(document).ready( function () {
+    var scope = angular.element(document).scope();
     smsStartSystem();
-    $('#localId').text(myId);
+    $('#localId').text(smsMyId);
 
     // for each client already existing, we will createOffers and send them
-    smsListClients(ext_updateRemoteClients);
+    smsListClients(function (clients) { ext_updateRemoteClients(scope, clients) });
 
+    // wait calls
+    console.log("we wait with id ", smsMyId);
+    scope.callWait(scope._p2pConnectionStateChange, function (data) {
+                       console.log("recv " + data);
+            })
 
-        // wait calls
-        callWait();    
 });
 
 window.onbeforeunload = function () {
@@ -197,7 +229,7 @@ window.onbeforeunload = function () {
 
 <hr/>
   <div class="row">
-   <div> 
+   <div>
 
     <h4>Peer Id List</h4>
     <div id="idList">
@@ -216,7 +248,7 @@ window.onbeforeunload = function () {
 
 <hr/>
   <div class="row">
-   <div> 
+   <div>
 
     <h4>Remote Id List</h4>
     <div id="idList">
@@ -233,7 +265,7 @@ window.onbeforeunload = function () {
   </div>
 
 <hr/>
- 
+
   <div id="text" class="row">
   </div>
 </div>

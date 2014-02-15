@@ -1,3 +1,4 @@
+/* vim: set tabstop=4 expandtab softab: */
 /**
     P2P single connection
 */
@@ -13,9 +14,9 @@ var RTCSTATUS = {
     CONNECTED    : "connected",
 };
 
-var rtcDEBUG = 1;
+var rtcDEBUG = 0;
 
-/** 
+/**
     returns a modified RTCPeerConnection to the specified partner.
     if the role is RECEIVER, the partner may be unknown
 */
@@ -82,6 +83,17 @@ function rtcGetConnection(role, remoteId, stateCB, dataChannelRecvCB) {
 
         lPC.oniceconnectionstatechange = function(evt) {
             if(rtcDEBUG)console.log("rtc: Ice connection state: ", this.iceConnectionState);
+            if (this.iceConnectionState === "connected" || this.iceConnectionState === "disconnected") {
+                console.log("Close callbacks");
+                if (this.candidateCallback != undefined) {
+                    smsUnregisterCallback("candidate", this.candidateCallback);
+                    this.candidateCallback = undefined;
+                }
+                if (this.sdpCallback != undefined) {
+                    smsUnregisterCallback("sdp", lPC.sdpCallback);
+                    this.sdpCallback = undefined;
+                }
+            }
             if (stateCB != undefined) stateCB(this.iceConnectionState);
         }
 
@@ -135,7 +147,7 @@ function rtcGetConnection(role, remoteId, stateCB, dataChannelRecvCB) {
         }
 
         // we need to receive any renegociation from the remote ID
-        smsRegisterCallback("sdp", function (sender, message) {
+        lPC.sdpCallback = smsRegisterCallback("sdp", function (sender, message) {
                 if(rtcDEBUG)console.log("renegociation with our designed remote");
                 msg = JSON.parse(message);
                 lPC.setRemoteDescription(new RTCSessionDescription(msg),
@@ -146,17 +158,17 @@ function rtcGetConnection(role, remoteId, stateCB, dataChannelRecvCB) {
             remoteId);
 
         // we want to register the candidates from the remote partner
-        smsRegisterCallback("candidate", function recvCandidate(sender, message) {
+        lPC.candidateCallback = smsRegisterCallback("candidate", function recvCandidate(sender, message) {
                 msg = JSON.parse(message);
                 if(rtcDEBUG)console.log("rtc: ", sender, msg )
-                var candidate = new RTCIceCandidate({sdpMLineIndex: msg.sdpMLineIndex, 
+                var candidate = new RTCIceCandidate({sdpMLineIndex: msg.sdpMLineIndex,
                                         candidate: msg.candidate});
                 try {
                     lPC.addIceCandidate(candidate);
                 } catch (err) {
                     if (!(typeof(err, SyntaxError) || typeof(err, TypeError))) throw err;
                 }
-            }, 
+            },
             remoteId);
 
 
