@@ -83,7 +83,7 @@ function rtcGetConnection(role, remoteId, stateCB, dataChannelRecvCB) {
 
         lPC.oniceconnectionstatechange = function(evt) {
             if(rtcDEBUG)console.log("rtc: Ice connection state: ", this.iceConnectionState);
-            if (this.iceConnectionState === "connected" || this.iceConnectionState === "disconnected") {
+            if (this.iceConnectionState === "disconnected") {
                 console.log("Close callbacks");
                 if (this.candidateCallback != undefined) {
                     smsUnregisterCallback("candidate", this.candidateCallback);
@@ -114,18 +114,26 @@ function rtcGetConnection(role, remoteId, stateCB, dataChannelRecvCB) {
         )}
 
         lPC.createSDPResponse = function () {
-            var mediaConstraints = {
-                optional: [],
-                mandatory: {
-                    OfferToReceiveAudio: false, // Hmm!!
-                    OfferToReceiveVideo: false // Hmm!!
-                }
-            };
+            var mediaConstraints;
             if (lPC.role == ROLE.CALLER) {
+                mediaConstraints= {
+                    optional: [],
+                    mandatory: {
+                        OfferToReceiveAudio: true,
+                        OfferToReceiveVideo: true,
+                    }
+                };
                 if(rtcDEBUG)console.log("rtc: .. Creating Offer");
                 lPC.createOffer(localDescriptionCallback,function (error) { if(rtcDEBUG)console.log(error) }, mediaConstraints);
             }
             else if (lPC.role == ROLE.RECEIVER) {
+                mediaConstraints= {
+                    optional: [],
+                    mandatory: {
+                        OfferToReceiveAudio: false,
+                        OfferToReceiveVideo: false,
+                    }
+                };
                 if(rtcDEBUG)console.log("rtc: .. Creating Answer");
                 lPC.createAnswer(localDescriptionCallback,function (error) { if(rtcDEBUG)console.log(error) } , mediaConstraints);
             }

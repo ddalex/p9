@@ -57,7 +57,7 @@ visionApp.controller('viewCtrl', function($scope) {
         smsRegisterCallback("sdp", function receiveSDP(sender, message) {
             var i;
             var msg = JSON.parse(message);
-
+            // SDPs from already connected peers are to be ignored
             for (i = 0; i < $scope.peers.length; i++)
                 if ($scope.peers[i].s == sender)
                     return;
@@ -74,8 +74,13 @@ visionApp.controller('viewCtrl', function($scope) {
             }
             console.log("got remote call from ", r, msg);
 
-            r.lpc = rtcGetConnection( ROLE.RECEIVER, sender, function(state) { stateCB(r, state); }, dataCB );
+            // if we dont' have video, create it
+            // for now, just refuse to answer
+            if (! $scope._hasVideo ) {
+              return;
+            }
 
+            r.lpc = rtcGetConnection( ROLE.RECEIVER, sender, function(state) { stateCB(r, state); }, dataCB );
             r.lpc.setRemoteDescription(new RTCSessionDescription(msg),
                 function () {
                         console.log("success setting remote");
@@ -173,8 +178,50 @@ visionApp.controller('viewCtrl', function($scope) {
         $scope.$digest();
     }
 
-});
 
+    /**
+    *       media       
+    */
+
+    $scope._hasVideo = false;
+
+    $scope.triggerBroadcast = function () {
+        if ($scope._hasVideo === true) {
+          return;
+        }
+        console.log("Get local video");
+        navigator.getMedia = ( navigator.getUserMedia ||
+          navigator.webkitGetUserMedia ||
+          navigator.mozGetUserMedia ||
+          navigator.msGetUserMedia);
+
+          navigator.getMedia (
+        
+           // constraints
+           {
+              video: true,
+              audio: true
+           },
+        
+           // successCallback
+           function(localMediaStream) {
+              var video = document.querySelector('#localVideo');
+              video.src = window.URL.createObjectURL(localMediaStream);
+              video.onloadedmetadata = function(e) {
+                $scope._hasVideo = true;
+                video.play();
+              };
+           },
+        
+           // errorCallback
+           function(err) {
+            console.log("The following error occured: " + err);
+           }
+        
+          );
+    }
+
+});   // end of controller scope
 
 
 function ext_updateRemoteClients(scope, clients) {
@@ -218,8 +265,9 @@ window.onbeforeunload = function () {
 <body role="main">
 <div class="container">
     <div class="row">
-    <h4>Chat</h4><div class="pull-right col-md-10"><textarea id="chat" readonly rows="5" class="col-md-10">
-    </textarea></div>
+    <h4>video</h4><div class="pull-right col-md-10"><br/>
+    <video id="localVideo"></video>
+    <div><button type="button" class="btn btn-primary" ng-model="singleModel" ng-click="triggerBroadcast()">LocalVideo</button></div>
     </div>
 
 <hr/>
@@ -237,7 +285,7 @@ window.onbeforeunload = function () {
 
             <div class="panel-heading panel-title" style="padding-bottom: 1.4em" >
             <h4>{{r.s}}</h4>
-            <button type="button" class="btn btn-primary pull-right " ng-model="singleModel" btn-checkbox btn-checkbox-true="1" btn-checkbox-false="0" ng-click="triggerDisconnect(r)"> Disconnect </button>
+            <button type="button" class="btn btn-primary pull-right " ng-model="singleModel" btn-checkbox btn-checkbox-true="1" btn-checkbox-false="0" ng-click="triggerBroadcast(r)"> Disconnect </button>
             </div>
 
         </div>
