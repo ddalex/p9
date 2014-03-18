@@ -1,4 +1,4 @@
-/* vim: set tabstop=4 expandtab softab: */
+/* vim: set tabstop=4 expandtab ai: */
 /**
     P2P single connection
 */
@@ -14,7 +14,7 @@ var RTCSTATUS = {
     CONNECTED    : "connected",
 };
 
-var rtcDEBUG = 0;
+var rtcDEBUG = 1;
 
 /**
     returns a modified RTCPeerConnection to the specified partner.

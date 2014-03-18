@@ -1,0 +1,11 @@
+{%extends "base.html"%}
+
+{%block "mainbody"%}
+<div><a href="{% url "sign.views.channelcreate" %}"><h2>Broadcast</h2></a></div>
+<div>
+	{% for c in channel %}
+		
+			<a href="{% url "sign.views.channelview" c.id %}"><h3>{{c.name}}</h3></a>
+	{% endfor %}
+</div>
+{%endblock%}

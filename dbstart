@@ -1,0 +1,1 @@
+export DATABASE_URL=mysql://root:clearsky02@localhost/p9_dev

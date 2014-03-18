@@ -1,0 +1,21 @@
+{%extends "base.html"%}
+<!-- vim: set tabstop=2 expandtab ai: -->
+
+{%block "mainbody"%}
+<style>
+div.bordervideo {
+  margin: 1px;
+  border: 1px solid red;
+}
+</style>
+<script src="static/js/messaging.js"></script>
+<script src="static/js/rtc.js"></script>
+<script src="static/js/app.js"></script>
+<div role="main">
+  <div class="container">
+    <div class="bordervideo"><video id="video"></video></div>
+    <label>Channel Name &nbsp;</label><input type="text"></input>
+    <button type="button" class="btn btn-primary" ng-model="singleModel" ng-click="doBroadcast()">Broadcast</button>
+  </div>
+</div>
+{%endblock%}

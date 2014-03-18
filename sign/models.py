@@ -2,7 +2,6 @@ from django.db import models
 
 # Create your models here.
 
-
 class Client(models.Model):
     STATUS_ALIVE = 0
     STATUS_DEAD = 1
@@ -23,4 +22,10 @@ class Message(models.Model):
     content = models.CharField(max_length=4096)
     created = models.DateTimeField()
 
-   
+class Channel(models.Model):
+    name = models.CharField(max_length=64, unique = True)
+    master = models.ForeignKey(Client)
+
+class ChannelRelays(models.Model):
+    channel = models.ForeignKey(Channel)
+    client = models.ForeignKey(Client)       

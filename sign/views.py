@@ -2,6 +2,7 @@
 from django.views.decorators.csrf import csrf_exempt
 from django.core.exceptions import ValidationError
 from django.http import HttpResponse
+from django.shortcuts import render
 from datetime import datetime, timedelta
 import time
 import json
@@ -107,4 +108,11 @@ def messages(request):
          "c" : x.id} for x in msg]),
       content_type="application/json")
 
+def home(request):
+    return render(request, 'home.html')
 
+def channelview(request, channelid):
+    return render(request, 'channelview.html')
+
+def channelcreate(request):
+    return render(request, 'channelcreate.html')
