@@ -53,7 +53,7 @@ visionApp.controller('viewCtrl', function($scope) {
             // get local playback stream
             r.lpc.addStream($scope._stream);
 
-            r.lpc.setRemoteDescription(new RTCSessionDescription(msg),
+            r.lpc.setRemoteDescription(r.lpc.buildSessionDescription(msg),
                 function () {
                         console.log("success setting remote");
                         r.lpc.createSDPResponse();
