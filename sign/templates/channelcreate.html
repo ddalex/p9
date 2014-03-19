@@ -10,12 +10,22 @@ div.bordervideo {
 </style>
 <script src="static/js/messaging.js"></script>
 <script src="static/js/rtc.js"></script>
-<script src="static/js/app.js"></script>
-<div role="main">
-  <div class="container">
+<script src="static/js/appbcast.js"></script>
+<div id="main" role="main" ng-app="vision" ng-controller="viewCtrl" class="container">
     <div class="bordervideo"><video id="video"></video></div>
-    <label>Channel Name &nbsp;</label><input type="text"></input>
-    <button type="button" class="btn btn-primary" ng-model="singleModel" ng-click="doBroadcast()">Broadcast</button>
-  </div>
+    <label>Channel Name &nbsp;</label><input type="text" ng-model="channel_name"></input>
+    <button type="button" class="btn btn-primary" ng-click="doBroadcast()">Broadcast</button>
+    <alert ng-repeat="alert in all_alerts" type="alert.type" close="alertClose($index)">{{alert.type}}</alert>
+    <hr/>
+    <div ng-model="scope">
+      <dl>
+        <dt>Broadcast Status</dt><dd>{{broadcast_status}}</dd>
+        <dt>Broadcast URL</dt><dd><div>{{broadcast_url}}</div><div>Publish with Twitter / Facebook / G+ / email</dd>
+        <dt>Number of viewers</dt><dd>{{broadcast_usersno}}</dd>
+        <dt>Client ID</dt><dd>{{local_id}}</dd>
+
+      </dl>
+    </div>
+
 </div>
 {%endblock%}

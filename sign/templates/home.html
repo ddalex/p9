@@ -1,11 +1,19 @@
 {%extends "base.html"%}
 
 {%block "mainbody"%}
-<div><a href="{% url "sign.views.channelcreate" %}"><h2>Broadcast</h2></a></div>
-<div>
-	{% for c in channel %}
-		
+<div class="container">
+  <div class="row">
+    <div class="col-md-6"><a href="{% url "sign.views.channelcreate" %}"><h3>Broadcast</h3></a>
+        <p> select to broadcast a new channel </p>
+    </div>
+
+    <div class="col-md-6"><h3> Online channels </h3>
+	    {% for c in channel %}	
+            <p> 
 			<a href="{% url "sign.views.channelview" c.id %}"><h3>{{c.name}}</h3></a>
-	{% endfor %}
+            </p>     
+    	{% endfor %}
+    </div>
+  </div>
 </div>
 {%endblock%}

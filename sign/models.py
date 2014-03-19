@@ -23,8 +23,17 @@ class Message(models.Model):
     created = models.DateTimeField()
 
 class Channel(models.Model):
-    name = models.CharField(max_length=64, unique = True)
-    master = models.ForeignKey(Client)
+    STATUS_ALIVE = 0
+    STATUS_DEAD = 1
+
+    CHANNEL_STATUS = (
+        (STATUS_ALIVE, "alive"),    
+        (STATUS_DEAD,  "dead"),
+    )
+    name    = models.CharField(max_length=64, unique = True)
+    master  = models.ForeignKey(Client)
+    created = models.DateTimeField(null=True)
+    status  = models.IntegerField(choices = CHANNEL_STATUS, default = STATUS_ALIVE)
 
 class ChannelRelays(models.Model):
     channel = models.ForeignKey(Channel)
