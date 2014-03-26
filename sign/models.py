@@ -35,6 +35,15 @@ class Channel(models.Model):
     created = models.DateTimeField(null=True)
     status  = models.IntegerField(choices = CHANNEL_STATUS, default = STATUS_ALIVE)
 
-class ChannelRelays(models.Model):
+class ChannelRelay(models.Model):
+    STATUS_ALIVE = 0
+    STATUS_DEAD = 1
+
+    RELAY_STATUS = (
+        (STATUS_ALIVE, "alive"),    
+        (STATUS_DEAD,  "dead"),
+    )
     channel = models.ForeignKey(Channel)
-    client = models.ForeignKey(Client)       
+    client = models.ForeignKey(Client)
+    updated = models.DateTimeField(null=True)
+    status = models.IntegerField(choices = RELAY_STATUS, default = STATUS_ALIVE)
