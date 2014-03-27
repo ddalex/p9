@@ -10,11 +10,9 @@ urlpatterns = patterns('',
     # Examples:
     url(r'^$', 'sign.views.home', name='home'),
     # url(r'^p9/', include('p9.foo.urls')),
-    url(r'^clients', 'sign.views.clients'),
-    url(r'^messages', 'sign.views.messages'),
     url(r'^channelcreate', 'sign.views.channelcreate'),
     url(r'^channelview/(?P<channelid>\d\+)/', 'sign.views.channelview'),
-    url(r'^channelrelay/(?P<channelid>\d\+/)/', 'sign.views.channelrelay'),
+    url(r'^api/1.0/', include ('sign.api1urls')),
 
     # Uncomment the admin/doc line below to enable admin documentation:
     # url(r'^admin/doc/', include('django.contrib.admindocs.urls')),
