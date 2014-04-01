@@ -4,6 +4,7 @@ from django.core.exceptions import ValidationError
 from django.http import HttpResponse
 from django.shortcuts import render
 from datetime import datetime, timedelta
+from django.db import IntegrityError
 import time
 import json
 
@@ -146,8 +147,8 @@ def home(request):
 def channelview(request, channelid):
     return render(request, 'channelview.html')
 
-def channeladd(request):
-    return render(request, 'channeladd.html')
+def channelcreate(request):
+    return render(request, 'channelcreate.html')
 
 # UI interaction
 @csrf_exempt    # TODO: remove after ALPHA stage, implement proper CSRF protection
@@ -162,8 +163,11 @@ def xhr_channeladd(request, **kwargs):
         channel_name = request.POST.get('name', '')
         if len(channel_name) == 0:
             raise CallError("did not get the name parameter")
+        try:
+            channel, created = Channel.objects.get_or_create(master = client, name = channel_name)
+        except IntegrityError as ie:
+            raise CallError(ie)
 
-        channel, created = Channel.objects.get_or_create(master = client, name = channel_name)
         if not created:
             if channel.status == Channel.STATUS_ALIVE or channel.master != client:
                 raise CallError("channel already existing")

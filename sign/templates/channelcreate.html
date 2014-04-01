@@ -10,19 +10,21 @@ div.bordervideo {
 </style>
 <script src="static/js/messaging.js"></script>
 <script src="static/js/rtc.js"></script>
+<script src="static/js/appcommon.js"></script>
 <script src="static/js/appbcast.js"></script>
 <div id="main" role="main" ng-app="vision" ng-controller="viewCtrl" class="container">
     <div class="bordervideo"><video id="video"></video></div>
     <label>Channel Name &nbsp;</label><input type="text" ng-model="channel_name"></input>
-    <button type="button" class="btn btn-primary" ng-click="doBroadcast()">Broadcast</button>
-    <alert ng-repeat="alert in all_alerts" type="alert.type" close="alertClose($index)">{{alert.type}}</alert>
+    {{all_alerts}}
+    <button type="button" class="btn btn-primary" ng-click="doButtonClick()">{[broadcast_button_label]}</button>
+    <alert ng-repeat="alert in all_alerts" type="alert.type" close="alertClose($index)">{[alert.msg]}</alert>
     <hr/>
-    <div ng-model="scope">
+    <div>
       <dl>
-        <dt>Broadcast Status</dt><dd>{{broadcast_status}}</dd>
-        <dt>Broadcast URL</dt><dd><div>{{broadcast_url}}</div><div>Publish with Twitter / Facebook / G+ / email</dd>
-        <dt>Number of viewers</dt><dd>{{broadcast_usersno}}</dd>
-        <dt>Client ID</dt><dd>{{local_id}}</dd>
+        <dt>Broadcast Status</dt><dd>{[broadcast_status]}</dd>
+        <dt>Broadcast URL</dt><dd><div>{[broadcast_url]}</div><div>Publish with Twitter / Facebook / G+ / email</dd>
+        <dt>Number of viewers</dt><dd>{[broadcast_usersno]}</dd>
+        <dt>Client ID</dt><dd>{[local_id]}</dd>
 
       </dl>
     </div>

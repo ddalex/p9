@@ -1,4 +1,4 @@
-// vim: set tabstop=4 expandtab ai: 
+// vim: set tabstop=4 expandtab ai:
 
 Array.prototype._indexOfS = function(element) {
     var i;
@@ -9,14 +9,19 @@ Array.prototype._indexOfS = function(element) {
 }
 
 
-var visionApp = angular.module('vision', ['ui.bootstrap']);
+var visionApp = angular.module('vision', ['ui.bootstrap'],  angular_formpost);
 
+visionApp.config(function($interpolateProvider) {
+    $interpolateProvider.startSymbol("{[");
+    $interpolateProvider.endSymbol("]}");
+});
 
-visionApp.controller('viewCtrl', function($scope) {
+visionApp.controller('viewCtrl', function($scope, $http, $q) {
     // both arrays hold "r" objects
     $scope.peers = [];
     $scope.remotes = [];
-    $scope.hasVideo
+
+    console.log($q);
 
     // waiting generates it's own r
     $scope.callWait = function (stateCB, dataCB) {
@@ -37,15 +42,9 @@ visionApp.controller('viewCtrl', function($scope) {
 
             if (r === undefined) {
               // we don't accept calls from unregistered peers
-              throw "Cannot accept call from unknown peer " + sender;
+              throw "appbcast: Cannot accept call from unknown peer " + sender;
             }
             console.log("got remote call from ", r, msg);
-
-            // if we dont' have video, create it
-            // for now, just refuse to answer
-            if (! $scope._hasVideo ) {
-              return;
-            }
 
             r.lpc = rtcGetConnection( ROLE.RECEIVER, sender, function(state) { stateCB(r, state); }, $scope.streamCB, dataCB );
             // get local playback stream
@@ -132,10 +131,9 @@ visionApp.controller('viewCtrl', function($scope) {
 
 
     /**
-    *       media       
+    *       media
     */
 
-    $scope._hasVideo = false;
     $scope._stream = undefined;
 
     $scope.streamCB = function (stream, op) {
@@ -148,40 +146,27 @@ visionApp.controller('viewCtrl', function($scope) {
             console.log("streamCB: localstream URL ",  url);
             video.src = url;
             video.onloadedmetadata = function(e) {
-                $scope._hasVideo = true;
                 video.play();
             };
-
-            // we have video, let's wait for calls
-            console.log("streamCB: we wait with id ", smsMyId);
-            $scope.callWait($scope._p2pConnectionStateChange, function (data) {
-                           console.log("recv " + data);
-            });
-
-            $scope.broadcast_status = "WAITING TO BROADCAST";
-            $scope.$apply();
         }
         else if (op === "remove") {
             // TODO: disconnect all counterparts
             // TODO: close this channel
         }
         else {
-            throw "streamCB: Invalid stream operation";
+            throw "appbcast: streamCB: Invalid stream operation";
         }
     }
 
-    /** 
+    /**
      *  UI logic
      *
      */
 
-        $scope.all_alerts = [
-    { type: 'danger', msg: 'Oh snap! Change a few things up and try submitting again.' },
-    { type: 'success', msg: 'Well done! You successfully read this important alert message.' }
-  ];;
+    $scope.all_alerts = [];
     $scope.channel_name = undefined;
     $scope.alertAdd = function(type, msg) {
-        var lalert ={'type': type, 'msg': msg}; 
+        var lalert ={'type': type, 'msg': msg};
         console.log(lalert);
         return $scope.all_alerts.push(lalert);
     }
@@ -189,76 +174,134 @@ visionApp.controller('viewCtrl', function($scope) {
         $scope.all_alerts.splice(idx, 1);
     }
 
-    $scope.broadcast_status = "STOPPED";
+    var broadcastStatusEnum = {
+        STOP: "STOPPED",
+        BCAST: "BROADCASTING",
+    }
 
-    $scope.doBroadcast = function () {
+    var bcastButtonLabelEnum = {
+        STOP: "End Transmission",
+        BCAST: "Start Transmission",
+    }
+
+    $scope.broadcast_status = broadcastStatusEnum.STOP;
+    $scope.broadcast_button_label = bcastButtonLabelEnum.BCAST;
+
+    $scope.broadcast_url = undefined;
+    $scope.broadcast_usersno = 0;
+
+    $scope._setStateBcast = function() {
+                $scope.broadcast_status = broadcastStatusEnum.BCAST;
+                $scope.broadcast_button_label = bcastButtonLabelEnum.STOP;
+    }
+    $scope._setStateStop  = function() {
+                $scope.broadcast_status = broadcastStatusEnum.STOP;
+                $scope.broadcast_button_label = bcastButtonLabelEnum.BCAST;
+    }
+
+    $scope.doButtonClick = function () {
+        if ($scope.broadcast_status == broadcastStatusEnum.STOP) {
+            $scope._bcastStart();
+        }
+        else if ($scope.broadcast_status == broadcastStatusEnum.BCAST) {
+            $scope.bcastStop();
+        }
+        else
+            throw "appbcast: Invalid action ! " + $scope.broadcast_status;
+    }
+
+    $scope.bcastStop = function () {
+        $http.post("/api/1.0/channeldel?" + $.param({s : $scope.local_id}), {'channel' : $scope.channel_id})
+            .success( function data() {
+                console.log("api: channeldel", data);
+                // to do: drop p2p connections
+                $scope._setStateStop();
+            }
+        )
+    }
+
+    $scope._bcastStart = function() {
         $scope.all_alerts = [];
-        var fail = 0;
+        var promise = undefined;
+
         // step 1. verify that we have enough data to start streaming
-        // - we have video ?
-        if ($scope._hasVideo !== true) {
-	        $scope.alertAdd("danger", "You need to have video !");
-            fail += 1;
-
-        }
         // - we have channel setup ?
-        if ($scope.channel_name === undefined) {
-            $scope.alertAdd("danger", "There is no channel name. Please set the channel name to start broadcast.");
-            fail += 2;
-        }
-
-        console.log("channel name is ", $scope.channel_name);
-
-        if (fail > 0) {
+        if ($scope.channel_name === undefined || $scope.channel_name.length < 3) {
+            $scope.alertAdd("danger", "We need a channel name.");
             return;
         }
+        if ($scope._stream === undefined) {
+            promise = $scope.getLocalMedia();
+        }
+        else
+        {
+            var d = $q.defer();
+            promise = d.promise;
+            d.resolve({});
+        }
 
-        // register the channel with the server
+        // step 2. we have all that's needed
+	    promise.then(
+                function(data) {
+                    if ($scope._stream === undefined) { $scope.streamCB(data.data, data.msg); }
+                    // register the channel with the server
+                    return $http.post("/api/1.0/channeladd?" + $.param({s : $scope.local_id}), {'name' : $scope.channel_name});
+                },
+                function(data) {
+                    $scope.alertAdd("danger", "We do not have a local video.");
+                    console.log(data);
+                }
+        ).then( function (retval) {
+            console.log("api: channeladd", retval.data);
+            if ('error' in retval.data) {
+                $scope.alertAdd("danger", retval.data.error);
+                throw "error while receiving data";
+            }
+            $scope.callWait(
+                function(r, state) { console.log("p2p: incoming call state updated", r, state); }, 
+                function(data) { console.log("p2p: incoming call data callback", data); }
+            );
+            // update the UI to mark broadcasting
+            $scope._setStateBcast();
+        },  function (data) { 
+            console.log("add failed ", data);
+        });
+    }
 
-        // update the UI to mark broadcasting
 
-        // update channel stats
+    $scope.getLocalMedia = function () {
+
+        var deffered = $q.defer();
+
+        navigator.getMedia = ( navigator.getUserMedia ||
+            navigator.webkitGetUserMedia ||
+            navigator.mozGetUserMedia ||
+            navigator.msGetUserMedia);
+
+        navigator.getMedia (
+
+             // constraints
+             {
+                 video: true,
+                 audio: false,
+             },
+
+             // successCallback
+             function(localMediaStream) {
+                 deffered.resolve({msg: 'add', data: localMediaStream});
+             },
+
+             // errorCallback
+             function(err) {
+                console.log("getMedia: The following error occured: " + err);
+                deffered.reject({msg:'err', data: err});
+             }
+
+        );
+        return deffered.promise;
     }
 
 });   // end of controller scope
-
-
-function ext_updateRemoteClients(scope, clients) {
-    scope.updateRemoteClients(clients);
-    scope.$digest();
-}
-
-function ext_getMedia(f) {
-    if (f === undefined) { 
-        throw "getMedia: Invalid success callback";
-    }
-    navigator.getMedia = ( navigator.getUserMedia ||
-        navigator.webkitGetUserMedia ||
-        navigator.mozGetUserMedia ||
-        navigator.msGetUserMedia);
-
-    navigator.getMedia (
-  
-         // constraints
-         {
-            video: true,
-            audio: false, 
-         },
-  
-         // successCallback
-         function(localMediaStream) {
-            f(localMediaStream, "add");
-         },
-  
-         // errorCallback
-         function(err) {
-          // TODO: upload error to server
-          console.log("getMedia: The following error occured: " + err);
-         }
-  
-    );
-}
-
 /**
     Start the system
 */
@@ -267,9 +310,8 @@ $(document).ready( function () {
 
     var scope = angular.element("div#main").scope();
 
-    ext_getMedia(scope.streamCB);
     scope.local_id  = smsMyId;
-    scope.$apply();
+    scope.getLocalMedia().then(function (data) {scope.streamCB(data.data, data.msg); }) ;
     smsStartSystem();
 
 });
@@ -277,6 +319,8 @@ $(document).ready( function () {
 window.onbeforeunload = function () {
     console.log("almost dead");
     // TODO: close the channel if we're broadcasting
+    var scope = angular.element("div#main").scope();
+    scope.bcastStop();
     smsStopSystem();
 };
 
