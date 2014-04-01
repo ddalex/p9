@@ -214,11 +214,13 @@ def xhr_channelrelayadd(request, **kwargs):
             raise CallError("must be POST-called")
 
         client = kwargs['client']
-        channel = Channel.objects.get(pk = request.POST.get(PARAM_CHANNEL, -1), status = Channel.STATUS_ALIVE)
-        cr = ChannelRelay.objects.get_or_create(channel = channel, client = client)
+        channelid = int(request.POST.get(PARAM_CHANNEL, -1))
+        channel = Channel.objects.get(pk = channelid, status = Channel.STATUS_ALIVE)
+        cr, created = ChannelRelay.objects.get_or_create(channel = channel, client = client)
         cr.status = ChannelRelay.STATUS_ALIVE
         cr.updated = datetime.now()
         cr.save()
+        return xhr_channelrelaylist(request, channel = channel)
     except (Channel.DoesNotExist, CallError) as e:
         return HttpResponse(json.dumps({PARAM_ERROR: str(e)}), content_type = "application/json")
 
@@ -231,11 +233,12 @@ def xhr_channelrelaydel(request, **kwargs):
             raise CallError("must be POST-called")
 
         client = kwargs['client']
-        channel = Channel.objects.get(pk = request.POST.get(PARAM_CHANNEL, -1), status = Channel.STATUS_ALIVE)
-        cr = ChannelRelay.objects.get_or_create(channel = channel, client = client)
+        cr = ChannelRelay.objects.get(client = client, status = ChannelRelay.STATUS_ALIVE)
+        channel = cr.channel
         cr.status = ChannelRelay.STATUS_DEAD
         cr.updated = datetime.now()
         cr.save()
+        return xhr_channelrelaylist(request, channel = channel)
     except (Channel.DoesNotExist, CallError) as e:
         return HttpResponse(json.dumps({PARAM_ERROR: str(e)}), content_type = "application/json")
 
@@ -244,9 +247,12 @@ def xhr_channelrelaydel(request, **kwargs):
 @must_have_aliveclient
 def xhr_channelrelaylist(request, **kwargs):
     try:
-        channel = Channel.objects.get(pk = request.GET.get(PARAM_CHANNEL, -1), status = Channel.STATUS_ALIVE)
-        return HttpResponse(json.dumps( [{'c': x.client.externid} for x in ChannelRelay.objects.filter(channel = channel, status = ChannelRelay.STATUS_ALIVE)]
-                + [{'c': channel.master}]), content_type = "application/json")
+        if 'channel' in kwargs:
+            channel = kwargs['channel']
+        else:
+            channel = Channel.objects.get(pk = request.GET.get(PARAM_CHANNEL, -1), status = Channel.STATUS_ALIVE)
+        return HttpResponse(json.dumps( [x.client.externid for x in ChannelRelay.objects.filter(channel = channel, status = ChannelRelay.STATUS_ALIVE)]
+                + [channel.master.externid]), content_type = "application/json")
     except (Channel.DoesNotExist, CallError) as e:
         return HttpResponse(json.dumps({PARAM_ERROR: str(e)}), content_type = "application/json")
 
