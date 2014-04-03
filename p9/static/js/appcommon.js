@@ -1,3 +1,13 @@
+// vim: set tabstop=4 expandtab ai:
+
+Array.prototype._indexOfS = function(element) {
+    var i;
+    for (i = 0; i < this.length; i++)
+        if (element.s === this[i].s)
+            return i;
+    return -1;
+}
+ 
 angular_formpost = function($httpProvider) {
   // Use x-www-form-urlencoded Content-Type
   $httpProvider.defaults.headers.post['Content-Type'] = 'application/x-www-form-urlencoded;charset=utf-8';
@@ -43,3 +53,12 @@ angular_formpost = function($httpProvider) {
     return angular.isObject(data) && String(data) !== '[object File]' ? param(data) : data;
   }];
 }
+
+var visionApp = angular.module('vision', ['ui.bootstrap'],  angular_formpost);
+
+visionApp.config(function($interpolateProvider) {
+    $interpolateProvider.startSymbol("{[");
+    $interpolateProvider.endSymbol("]}");
+});
+
+

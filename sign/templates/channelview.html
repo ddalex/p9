@@ -1,11 +1,36 @@
 {%extends "base.html"%}
+<!-- vim: set tabstop=2 expandtab ai: -->
+{% load staticfiles %}
 
 {%block "mainbody"%}
-<div><a href="{% url "sign.views.channelcreate" %}"><h2>Broadcast</h2></a></div>
-<div>
-	{% for c in channel %}
-		
-			<a href="{% url "sign.views.channelview" c.id %}"><h3>{{c.name}}</h3></a>
-	{% endfor %}
+<style>
+div.bordervideo {
+  margin: 1px;
+  border: 1px solid red;
+}
+input {
+  visibility: none
+}
+</style>
+<script src="{% static "js/messaging.js" %}"></script>
+<script src="{% static "js/rtc.js" %}"></script>
+<script src="{% static "js/appcommon.js" %}"></script>
+<script src="{% static "js/apprelay.js" %}"></script>
+<div id="main" role="main" ng-app="vision" ng-controller="viewCtrl" class="container">
+    <div class="bordervideo"><video id="video"></video></div>
+    <alert ng-repeat="alert in all_alerts" type="alert.type" close="alertClose($index)">{[alert.msg]}</alert>
+    <hr/>
+    <div>
+      <dl>
+	<dt>Channel</dt><dd ng-init="channel_id = {{channel.id}}">{{channel.name}}</dd>
+        <dt>Broadcast Status</dt><dd>{[broadcast_status]}</dd>
+        <dt>Broadcast URL</dt><dd><div>{[broadcast_url]}</div><div>Publish with Twitter / Facebook / G+ / email</dd>
+        <dt>Number of viewers</dt><dd>{[broadcast_usersno]}</dd>
+        <dt>Client ID</dt><dd>{[local_id]}</dd>
+
+      </dl>
+    </div>
+
 </div>
 {%endblock%}
+

@@ -1,20 +1,11 @@
-Array.prototype._indexOfS = function(element) {
-    var i;
-    for (i = 0; i < this.length; i++)
-        if (element.s === this[i].s)
-            return i;
-    return -1;
-}
+// vim: set tabstop=4 expandtab ai:
 
-
-var visionApp = angular.module('vision', ['ui.bootstrap']);
-
-
-visionApp.controller('viewCtrl', function($scope) {
+visionApp.controller('viewCtrl', function($scope, $http, $q) {
     // both arrays hold "r" objects
     $scope.peers = [];
     $scope.remotes = [];
 
+    // we need to build an 'r' object and call this with stateCB and data dataCB
     $scope._callRemote = function (r, stateCB, dataCB) {
         console.log("main: we call ", r.s);
         r.lpc = rtcGetConnection( ROLE.CALLER, r.s, function (state) { stateCB(r, state); }, $scope._streamCB, dataCB);
@@ -85,21 +76,24 @@ visionApp.controller('viewCtrl', function($scope) {
         }
     }
 
-    $scope.triggerDisconnect = function (r) {
+    $scope.doDisconnect = function (r) {
         console.log("trigger disconnection");
          // TODO: trigger rtc disconnect
          r.lpc.close();
          $scope.removeConnection(r);
     }
 
-    $scope.triggerConnect = function (r) {
+    $scope.doConnect = function (r) {
         console.log("trigger connection to ", r);
         $scope.addConnection(r);
-
-        $scope._callRemote(r, $scope._p2pConnectionStateChange,
-            function (data) {
-                       console.log("recv " + data);
+        $scope._callRemote(r, 
+            function(r, state) { 
+                console.log("we have state", r, state);
+            },
+            function(data) {
+                console.log("we have data", data);
             });
+
     }
 
 
@@ -145,11 +139,26 @@ visionApp.controller('viewCtrl', function($scope) {
 
 
         // we will refresh the client list
-        setTimeout(function() { smsListClients($scope.updateRemoteClients); }, 2500);
-
-        $scope.$digest();
     }
 
+
+    $scope.startStreaming = function() {
+        // retrieve client list for this channel
+        $http.get("/api/1.0/channelrelaylist?" + $.param({s: $scope.local_id, channel: $scope.channel_id}))
+            .success(function (retval) {
+                console.log("channel relay list", retval);
+                if (retval.error) {
+                    $scope.alertAdd("danger", retval.error);
+                    throw "error while receiving data";
+                } else {
+                    var c = new Object();
+                    c.s = retval[0];
+                    $scope.remotes.push(c);
+                    $scope.doConnect(c);
+                }
+
+            });
+    }
 
     /**
     *       media       
@@ -160,7 +169,7 @@ visionApp.controller('viewCtrl', function($scope) {
 
     $scope._streamCB = function (stream, op) {
         if (op === "add") {
-            var video = document.querySelector('#localVideo');
+            var video = document.querySelector('video#video');
             $scope._stream = stream;
             console.log("got stream ", stream);
             url = window.URL.createObjectURL(stream);
@@ -207,33 +216,41 @@ visionApp.controller('viewCtrl', function($scope) {
            }
         
           );
+
     }
+
+    /**
+     *  UI logic
+     *
+     */
+
+    $scope.all_alerts = [];
+    $scope.channel_name = undefined;
+    $scope.alertAdd = function(type, msg) {
+        var lalert ={'type': type, 'msg': msg};
+        console.log(lalert);
+        return $scope.all_alerts.push(lalert);
+    }
+    $scope.alertClose = function(idx) {
+        $scope.all_alerts.splice(idx, 1);
+    }
+
+
 
 });   // end of controller scope
 
 
-function ext_updateRemoteClients(scope, clients) {
-    scope.updateRemoteClients(clients);
-    scope.$digest();
-}
 
 /**
     Start the system
 */
 
 $(document).ready( function () {
-    var scope = angular.element(document).scope();
+    var scope = angular.element("div#main").scope();
+
+    scope.local_id  = smsMyId;
     smsStartSystem();
-    $('#localId').text(smsMyId);
-
-    // for each client already existing, we will createOffers and send them
-    smsListClients(function (clients) { ext_updateRemoteClients(scope, clients) });
-
-    // wait calls
-    console.log("we wait with id ", smsMyId);
-    scope.callWait(scope._p2pConnectionStateChange, function (data) {
-                       console.log("recv " + data);
-            })
+    scope.startStreaming();
 
 });
 

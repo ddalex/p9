@@ -6,12 +6,14 @@ from django.views.decorators.cache import never_cache
 # from django.contrib import admin
 # admin.autodiscover()
 
+import sign.views
+
 urlpatterns = patterns('',
     # Examples:
     url(r'^$', 'sign.views.home', name='home'),
     # url(r'^p9/', include('p9.foo.urls')),
-    url(r'^channelcreate', 'sign.views.channelcreate'),
-    url(r'^channelview/(?P<channelid>\d\+)/', 'sign.views.channelview'),
+    url(r'^channelcreate', sign.views.channelcreate),
+    url(r'^channelview/(?P<channelid>\d+)/', sign.views.channelview),
     url(r'^api/1.0/', include ('sign.api1urls')),
 
     # Uncomment the admin/doc line below to enable admin documentation:

@@ -50,9 +50,11 @@ def must_have_aliveclient(function):
 
 def client_disconnect(clientlist):
     for c in clientlist:
+        c.channel_set.update(status = Channel.STATUS_DEAD)
         c.status = Client.STATUS_DEAD
-        c.save()
-    # TODO: delete all channel-related information
+        c.save()        
+        
+    # TODO: delete all channel-related information    
 
 # messaging system
 
@@ -93,9 +95,9 @@ def xhr_client(request):
         return HttpResponse(json.dumps({PARAM_ERROR: str(e)}), content_type = "application/json")
 
 
+@csrf_exempt
 @must_have_externid
 @must_have_aliveclient
-@csrf_exempt
 def xhr_message(request, **kwargs):
     '''
     Messages API:
@@ -142,10 +144,18 @@ def xhr_message(request, **kwargs):
 # UI rendering
 
 def home(request):
-    return render(request, 'home.html')
+    context = {
+        "channels": Channel.objects.filter(status = Channel.STATUS_ALIVE),
+    }
+
+    return render(request, 'home.html', context)
 
 def channelview(request, channelid):
-    return render(request, 'channelview.html')
+    c = Channel.objects.get(pk = channelid)
+    context = {
+        "channel" : c
+    }
+    return render(request, 'channelview.html', context)
 
 def channelcreate(request):
     return render(request, 'channelcreate.html')
@@ -163,14 +173,15 @@ def xhr_channeladd(request, **kwargs):
         channel_name = request.POST.get('name', '')
         if len(channel_name) == 0:
             raise CallError("did not get the name parameter")
-        try:
-            channel, created = Channel.objects.get_or_create(master = client, name = channel_name)
-        except IntegrityError as ie:
-            raise CallError(ie)
 
-        if not created:
-            if channel.status == Channel.STATUS_ALIVE or channel.master != client:
-                raise CallError("channel already existing")
+        try:
+            channel = Channel.objects.create(master = client, 
+            name = channel_name, 
+            )
+        except IntegrityError:
+            raise CallError("Channel name already taken")
+
+        channel.status = Channel.STATUS_ALIVE
         channel.created = datetime.now()
         channel.save()
 
@@ -254,7 +265,10 @@ def xhr_channelrelaylist(request, **kwargs):
         if 'channel' in kwargs:
             channel = kwargs['channel']
         else:
-            channel = Channel.objects.get(pk = request.GET.get(PARAM_CHANNEL, -1), status = Channel.STATUS_ALIVE)
+            try:
+                channel = Channel.objects.get(pk = int(request.GET.get(PARAM_CHANNEL, -1)), status = Channel.STATUS_ALIVE)
+            except ValueError:
+                raise CallError("Invalid channel id")
         return HttpResponse(json.dumps( [x.client.externid for x in ChannelRelay.objects.filter(channel = channel, status = ChannelRelay.STATUS_ALIVE)]
                 + [channel.master.externid]), content_type = "application/json")
     except (Channel.DoesNotExist, CallError) as e:

@@ -1,6 +1,6 @@
 /* vim: set tabstop=4 expandtab: */
 //var HOMEURL = "http://localhost:8000/api/1.0/";
-var HOMEURL = "api/1.0";
+var HOMEURL = "/api/1.0";
 
 var _smsMsgCallbacks = {}
 // start at most 5 seconds ago

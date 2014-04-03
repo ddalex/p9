@@ -1,21 +1,5 @@
 // vim: set tabstop=4 expandtab ai:
 
-Array.prototype._indexOfS = function(element) {
-    var i;
-    for (i = 0; i < this.length; i++)
-        if (element.s === this[i].s)
-            return i;
-    return -1;
-}
-
-
-var visionApp = angular.module('vision', ['ui.bootstrap'],  angular_formpost);
-
-visionApp.config(function($interpolateProvider) {
-    $interpolateProvider.startSymbol("{[");
-    $interpolateProvider.endSymbol("]}");
-});
-
 visionApp.controller('viewCtrl', function($scope, $http, $q) {
     // both arrays hold "r" objects
     $scope.peers = [];
@@ -23,7 +7,7 @@ visionApp.controller('viewCtrl', function($scope, $http, $q) {
 
     console.log($q);
 
-    // waiting generates it's own r
+    // waiting generates it's own r when it receives a call
     $scope.callWait = function (stateCB, dataCB) {
         // we want to receive calls
         smsRegisterCallback("sdp", function receiveSDP(sender, message) {
@@ -41,8 +25,10 @@ visionApp.controller('viewCtrl', function($scope, $http, $q) {
                 }
 
             if (r === undefined) {
-              // we don't accept calls from unregistered peers
-              throw "appbcast: Cannot accept call from unknown peer " + sender;
+              // throw "appbcast: Cannot accept call from unknown peer " + sender;
+              r = new Object();
+              r.s = sender;
+              $scope.remotes.push(r);
             }
             console.log("got remote call from ", r, msg);
 
@@ -212,7 +198,7 @@ visionApp.controller('viewCtrl', function($scope, $http, $q) {
 
     $scope.bcastStop = function () {
         $http.post("/api/1.0/channeldel?" + $.param({s : $scope.local_id}), {'channel' : $scope.channel_id})
-            .success( function data() {
+            .success( function (data) {
                 console.log("api: channeldel", data);
                 // to do: drop p2p connections
                 $scope._setStateStop();
