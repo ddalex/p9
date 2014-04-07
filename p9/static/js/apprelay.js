@@ -8,6 +8,7 @@ visionApp.controller('viewCtrl', function($scope, $http, $q) {
     // we need to build an 'r' object and call this with stateCB and data dataCB
     $scope._callRemote = function (r, stateCB, dataCB) {
         console.log("main: we call ", r.s);
+        $scope.broadcast_status = "CONNECTING";
         r.lpc = rtcGetConnection( ROLE.CALLER, r.s, function (state) { stateCB(r, state); }, $scope._streamCB, dataCB);
     }
 
@@ -88,6 +89,7 @@ visionApp.controller('viewCtrl', function($scope, $http, $q) {
         $scope.addConnection(r);
         $scope._callRemote(r, 
             function(r, state) { 
+                $scope.broadcast_status = state;
                 console.log("we have state", r, state);
             },
             function(data) {
@@ -235,7 +237,8 @@ visionApp.controller('viewCtrl', function($scope, $http, $q) {
         $scope.all_alerts.splice(idx, 1);
     }
 
-
+    $scope.broadcast_status = "WAITING";
+    
 
 });   // end of controller scope
 
@@ -258,6 +261,4 @@ window.onbeforeunload = function () {
     console.log("almost dead");
     smsStopSystem();
 };
-
-
 

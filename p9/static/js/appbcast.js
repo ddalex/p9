@@ -31,6 +31,7 @@ visionApp.controller('viewCtrl', function($scope, $http, $q) {
               $scope.remotes.push(r);
             }
             console.log("got remote call from ", r, msg);
+            $scope.addConnection
 
             r.lpc = rtcGetConnection( ROLE.RECEIVER, sender, function(state) { stateCB(r, state); }, $scope.streamCB, dataCB );
             // get local playback stream
@@ -50,7 +51,7 @@ visionApp.controller('viewCtrl', function($scope, $http, $q) {
         if ( $scope.remotes._indexOfS(r) >= 0 ) {
             // we process the connect request
             if (state === "connected") {
-                console.log("we have a connection ");
+                console.log("p2p: we have a connection ");
                 $scope.addConnection(r);
                 $scope.$digest();
             }
@@ -58,13 +59,13 @@ visionApp.controller('viewCtrl', function($scope, $http, $q) {
         // if r in peers, we expect a disconnect
         else if ( $scope.peers._indexOfS(r) >= 0 ) {
             if (state === "disconnected") {
-                console.log("remote disconnected ");
+                console.log("p2p: remote disconnected ");
                 $scope.removeConnection(r);
                 $scope.$digest();
             }
         }
         else {
-          console.log("got a ", state, " for ", r);
+          console.log("p2p: got a ", state, " for ", r);
         }
     }
 
@@ -238,13 +239,13 @@ visionApp.controller('viewCtrl', function($scope, $http, $q) {
                     console.log(data);
                 }
         ).then( function (retval) {
-            console.log("api: channeladd", retval.data);
+            console.log("api: channeladd", retval);
             if ('error' in retval.data) {
-                $scope.alertAdd("danger", retval.data.error);
+                $scope.alertAdd("danger", retval.error);
                 throw "error while receiving data";
             }
             $scope.callWait(
-                function(r, state) { console.log("p2p: incoming call state updated", r, state); }, 
+                function(r, state) { console.log("p2p: incoming call state updated", r, state);  $scope._p2pConnectionStateChange(r, state); }, 
                 function(data) { console.log("p2p: incoming call data callback", data); }
             );
             // update the UI to mark broadcasting

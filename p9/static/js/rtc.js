@@ -47,8 +47,6 @@ function rtcGetConnection(role, remoteId, onStateCB, onStreamCB, onDRecvCB) {
     // called on either createOffer or createAnswer
     var iceServers = {
         iceServers: [
-                    { url: 'stun:stun.sipgate.net' },
-                    { url: 'stun:stun.ekiga.net' },
                     { url: 'stun:stun.l.google.com:19302' },
         ]
     };
@@ -76,6 +74,7 @@ function rtcGetConnection(role, remoteId, onStateCB, onStreamCB, onDRecvCB) {
             _RTCIceCandidate = window.mozRTCIceCandidate
     else throw "Error finding RTCIceCandidate";
 
+
     lPC = new _RTCPeerConnection(iceServers, {optional: [{RtpDataChannels: true}]});
 
     lPC.role = role;
@@ -88,7 +87,6 @@ function rtcGetConnection(role, remoteId, onStateCB, onStreamCB, onDRecvCB) {
 
     lPC.sendChannel.onmessage = onDRecvCB;
 
-
     lPC.onicecandidate = function(evt) {
         if (evt.candidate != null) {
             smsPostMessage(lPC.remoteId, "candidate", JSON.stringify(evt.candidate));
@@ -99,6 +97,7 @@ function rtcGetConnection(role, remoteId, onStateCB, onStreamCB, onDRecvCB) {
         if(rtcDEBUG)console.log("rtc: 2: !" , evt);
     }
 
+
     lPC.onopen = function(evt) {
         if(rtcDEBUG)console.log("rtc: 3: !" , evt);
     }
@@ -108,16 +107,16 @@ function rtcGetConnection(role, remoteId, onStateCB, onStreamCB, onDRecvCB) {
     }
 
     lPC.oniceconnectionstatechange = function(evt) {
-        if(rtcDEBUG)console.log("rtc: Ice connection state: ", this.iceConnectionState);
-        if (this.iceConnectionState === "disconnected") {
+        if(rtcDEBUG)console.log("rtc: Ice connection state: ", lPC.iceConnectionState);
+        if (lPC.iceConnectionState === "disconnected") {
             console.log("Close callbacks");
-            if (this.candidateCallback != undefined) {
+            if (lPC.candidateCallback != undefined) {
                 smsUnregisterCallback("candidate", this.candidateCallback);
-                this.candidateCallback = undefined;
+                lPC.candidateCallback = undefined;
             }
-            if (this.sdpCallback != undefined) {
+            if (lPC.sdpCallback != undefined) {
                 smsUnregisterCallback("sdp", lPC.sdpCallback);
-                this.sdpCallback = undefined;
+                lPC.sdpCallback = undefined;
             }
         }
         if (onStateCB != undefined) onStateCB(this.iceConnectionState);
@@ -141,6 +140,7 @@ function rtcGetConnection(role, remoteId, onStateCB, onStreamCB, onDRecvCB) {
 
     lPC.createSDPResponse = function () {
         var mediaConstraints;
+
         if (lPC.role == ROLE.CALLER) {
             mediaConstraints= {
                 optional: [],
@@ -150,7 +150,7 @@ function rtcGetConnection(role, remoteId, onStateCB, onStreamCB, onDRecvCB) {
                 }
             };
             if(rtcDEBUG)console.log("rtc: .. Creating Offer");
-            lPC.createOffer(localDescriptionCallback,function (error) { if(rtcDEBUG)console.log(error) }, mediaConstraints);
+            lPC.createOffer(localDescriptionCallback,function (error) { if(rtcDEBUG)throw(error) }, mediaConstraints);
         }
         else if (lPC.role == ROLE.RECEIVER) {
             mediaConstraints= {
@@ -161,7 +161,7 @@ function rtcGetConnection(role, remoteId, onStateCB, onStreamCB, onDRecvCB) {
                 }
             };
             if(rtcDEBUG)console.log("rtc: .. Creating Answer");
-            lPC.createAnswer(localDescriptionCallback,function (error) { if(rtcDEBUG)console.log(error) } , mediaConstraints);
+            lPC.createAnswer(localDescriptionCallback,function (error) { if(rtcDEBUG)throw(error) } , mediaConstraints);
         }
         else {
             if(rtcDEBUG)console.log("rtc: Role undefined, no idea what to do");
@@ -169,7 +169,7 @@ function rtcGetConnection(role, remoteId, onStateCB, onStreamCB, onDRecvCB) {
     }
 
     lPC.onsignalingstatechange = function(evt) {
-        if(rtcDEBUG)console.log("rtc: signalstatechange: !" , this.signalingState);
+        if(rtcDEBUG)console.log("rtc: signalstatechange: " , lPC.signalingState);
     }
 
     lPC.onaddstream = function(evt) {
@@ -186,13 +186,16 @@ function rtcGetConnection(role, remoteId, onStateCB, onStreamCB, onDRecvCB) {
         return new _RTCSessionDescription(msg);
     }
 
+    lPC.gotSDP = 0;
     // we need to receive any renegociation from the remote ID
     lPC.sdpCallback = smsRegisterCallback("sdp", function (sender, message) {
-            if(rtcDEBUG)console.log("renegociation with our designed remote");
+            if (lPC.gotSDP) return;
+            lPC.gotSDP = 1;
             msg = JSON.parse(message);
-            lPC.setRemoteDescription(new _RTCSessionDescription(msg),
+            if(rtcDEBUG)console.log("rtc: negociation with our designed remote, received", msg);
+            lPC.setRemoteDescription( new _RTCSessionDescription(msg),
                 function () { if(rtcDEBUG)console.log("rtc: success setting remote"); },
-                function (err) { if(rtcDEBUG)console.log(err) }
+                function (err) { if(rtcDEBUG)throw(err) }
             );
         } ,
         remoteId);
@@ -200,7 +203,7 @@ function rtcGetConnection(role, remoteId, onStateCB, onStreamCB, onDRecvCB) {
     // we want to register the candidates from the remote partner
     lPC.candidateCallback = smsRegisterCallback("candidate", function recvCandidate(sender, message) {
             msg = JSON.parse(message);
-            if(rtcDEBUG)console.log("rtc: ", sender, msg )
+            if(rtcDEBUG)console.log("rtc: got candidate from remote ", sender, msg )
             var candidate = new _RTCIceCandidate({sdpMLineIndex: msg.sdpMLineIndex,
                                     candidate: msg.candidate});
             try {
@@ -211,6 +214,7 @@ function rtcGetConnection(role, remoteId, onStateCB, onStreamCB, onDRecvCB) {
         },
         remoteId);
 
+    console.log("rtc: we got basic objects");
     return lPC;
 }
 
