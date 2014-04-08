@@ -241,9 +241,11 @@ visionApp.controller('viewCtrl', function($scope, $http, $q) {
         ).then( function (retval) {
             console.log("api: channeladd", retval);
             if ('error' in retval.data) {
-                $scope.alertAdd("danger", retval.error);
-                throw "error while receiving data";
+                $scope.alertAdd("danger", retval.data.error);
+                console.log("error while receiving data", retval);
             }
+            $scope.channel_id = retval.data.channel;
+            
             $scope.callWait(
                 function(r, state) { console.log("p2p: incoming call state updated", r, state);  $scope._p2pConnectionStateChange(r, state); }, 
                 function(data) { console.log("p2p: incoming call data callback", data); }

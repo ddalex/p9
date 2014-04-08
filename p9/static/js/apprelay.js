@@ -59,7 +59,7 @@ visionApp.controller('viewCtrl', function($scope, $http, $q) {
         if ( $scope.remotes._indexOfS(r) >= 0 ) {
             // we process the connect request
             if (state === "connected") {
-                console.log("we have a connection ");
+                console.log("p2p: we have a connection ");
                 $scope.addConnection(r);
                 $scope.$digest();
             }
@@ -67,13 +67,13 @@ visionApp.controller('viewCtrl', function($scope, $http, $q) {
         // if r in peers, we expect a disconnect
         else if ( $scope.peers._indexOfS(r) >= 0 ) {
             if (state === "disconnected") {
-                console.log("remote disconnected ");
+                console.log("p2p: remote disconnected ");
                 $scope.removeConnection(r);
                 $scope.$digest();
             }
         }
         else {
-          console.log("got a ", state, " for ", r);
+          console.log("p2p: got a ", state, " for ", r);
         }
     }
 
@@ -86,14 +86,14 @@ visionApp.controller('viewCtrl', function($scope, $http, $q) {
 
     $scope.doConnect = function (r) {
         console.log("trigger connection to ", r);
-        $scope.addConnection(r);
         $scope._callRemote(r, 
             function(r, state) { 
                 $scope.broadcast_status = state;
-                console.log("we have state", r, state);
+                console.log("p2p: outgoing call state updated", r, state);
+                $scope._p2pConnectionStateChange(r, state);
             },
             function(data) {
-                console.log("we have data", data);
+                console.log("p2p: outgoing call data callback", data);
             });
 
     }
@@ -151,7 +151,7 @@ visionApp.controller('viewCtrl', function($scope, $http, $q) {
                 console.log("channel relay list", retval);
                 if (retval.error) {
                     $scope.alertAdd("danger", retval.error);
-                    throw "error while receiving data";
+                    console.log("error while receiving data", retval.error);
                 } else {
                     var c = new Object();
                     c.s = retval[0];
@@ -173,9 +173,9 @@ visionApp.controller('viewCtrl', function($scope, $http, $q) {
         if (op === "add") {
             var video = document.querySelector('video#video');
             $scope._stream = stream;
-            console.log("got stream ", stream);
+            console.log("stateCB: got stream ", stream);
             url = window.URL.createObjectURL(stream);
-            console.log("localstream URL ",  url);
+            console.log("stateCB: localstream URL ",  url);
             video.src = url;
             video.onloadedmetadata = function(e) {
                 $scope._hasVideo = true;

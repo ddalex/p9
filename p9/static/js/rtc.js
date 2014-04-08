@@ -203,7 +203,7 @@ function rtcGetConnection(role, remoteId, onStateCB, onStreamCB, onDRecvCB) {
     // we want to register the candidates from the remote partner
     lPC.candidateCallback = smsRegisterCallback("candidate", function recvCandidate(sender, message) {
             msg = JSON.parse(message);
-            if(rtcDEBUG)console.log("rtc: got candidate from remote ", sender, msg )
+            //if(rtcDEBUG)console.log("rtc: got candidate from remote ", sender, msg )
             var candidate = new _RTCIceCandidate({sdpMLineIndex: msg.sdpMLineIndex,
                                     candidate: msg.candidate});
             try {
