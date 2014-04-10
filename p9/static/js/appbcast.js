@@ -25,10 +25,10 @@ visionApp.controller('viewCtrl', function($scope, $http, $q) {
                 }
 
             if (r === undefined) {
-              // throw "appbcast: Cannot accept call from unknown peer " + sender;
-              r = new Object();
-              r.s = sender;
-              $scope.remotes.push(r);
+                $http
+                r = new Object();
+                r.s = sender;
+                $scope.remotes.push(r);
             }
             console.log("got remote call from ", r, msg);
             $scope.addConnection
@@ -198,7 +198,7 @@ visionApp.controller('viewCtrl', function($scope, $http, $q) {
     }
 
     $scope.bcastStop = function () {
-        $http.post("/api/1.0/channeldel?" + $.param({s : $scope.local_id}), {'channel' : $scope.channel_id})
+        $http.post("/api/1.0/channel?" + $.param({s : $scope.local_id}), {'channel' : $scope.channel_id, 's': 1})
             .success( function (data) {
                 console.log("api: channeldel", data);
                 // to do: drop p2p connections
@@ -232,7 +232,7 @@ visionApp.controller('viewCtrl', function($scope, $http, $q) {
                 function(data) {
                     if ($scope._stream === undefined) { $scope.streamCB(data.data, data.msg); }
                     // register the channel with the server
-                    return $http.post("/api/1.0/channeladd?" + $.param({s : $scope.local_id}), {'name' : $scope.channel_name});
+                    return $http.post("/api/1.0/channel?" + $.param({s : $scope.local_id}), {'name' : $scope.channel_name, 'x': 0});
                 },
                 function(data) {
                     $scope.alertAdd("danger", "We do not have a local video.");

@@ -15,7 +15,7 @@ class ClientAPITest(TestCase):
         self.assertEqual(response['Content-Type'], "application/json")
 
         data = json.loads(response.content)
-        self.assertFalse(u'error' in data)
+        self.assertFalse(u'error' in data, data)
 
         clientFound = False
         for d in data:
@@ -31,7 +31,7 @@ class ClientAPITest(TestCase):
         self.assertEqual(response['Content-Type'], "application/json")
 
         data = json.loads(response.content)
-        self.assertFalse(u'error' in data)
+        self.assertFalse(u'error' in data, data)
 
 
         clientFound = False
@@ -89,7 +89,7 @@ class MessagingAPITest(TestCase):
         self.assertEqual(response['Content-Type'], "application/json", "fail: " + response.content)
 
         data = json.loads(response.content)
-        self.assertFalse(u'error' in data)
+        self.assertFalse(u'error' in data, data)
 
         dataFound = False
         for d in data:
@@ -104,7 +104,7 @@ class MessagingAPITest(TestCase):
         self.assertEqual(response['Content-Type'], "application/json")
 
         data = json.loads(response.content)
-        self.assertFalse(u'error' in data)
+        self.assertFalse(u'error' in data, data)
 
         dataFound = False
         for d in data:
@@ -127,50 +127,69 @@ class ChannelAPITest(TestCase):
 
     def test_channel_create(self):
         c = Client()
-        response = c.post("/api/1.0/channeladd?s="+self.clientId, {'name': 'testchannel'})
+        response = c.post("/api/1.0/channel?s="+self.clientId, {'name': 'testchannel', 'x': 0})
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response['Content-Type'], "application/json")
         data = json.loads(response.content)
-        self.assertFalse(u'error' in data)
+        self.assertFalse(u'error' in data, data)
 
-
-        self.assertEqual(data['channel'], Channel.objects.get(master = SignClient.objects.get(externid = self.clientId), name = 'testchannel', status = Channel.STATUS_ALIVE).pk)
+        self.assertTrue(Channel.objects.filter(master = SignClient.objects.get(externid = self.clientId), name = 'testchannel', status = Channel.STATUS_ALIVE).count() > 0)
 
     def test_channel_delete(self):
         c = Client()
-        response = c.post("/api/1.0/channeladd?s="+self.clientId, {'name': 'testchannel'})
-        channelid = json.loads(response.content)['channel']
-        self.assertEqual(len(Channel.objects.filter(pk = channelid)), 1)
+        response = c.post("/api/1.0/channel?s="+self.clientId, {'name': 'testchannel', 'x': 0})
+        data = json.loads(response.content)
+        self.assertTrue(Channel.objects.filter(name = 'testchannel', status = Channel.STATUS_ALIVE).count(), 1)
 
-        response = c.post("/api/1.0/channeldel?s="+self.clientId, {'channel': channelid})
+        channelid = None
+        for c in data:
+            if c['name'] == 'testchannel':
+                channelid = c['channel']
+                break
+
+        self.assertTrue(channelid is not None)
+
+        c = Client()
+        response = c.post("/api/1.0/channel?s="+self.clientId, {'channel': channelid, 'x': 1})
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response['Content-Type'], "application/json")
+        data = json.loads(response.content)
 
         with self.assertRaises(Channel.DoesNotExist):
             Channel.objects.get(pk = channelid, status=Channel.STATUS_ALIVE)
 
+        self.assertFalse('testchannel' in map(lambda x:x['name'], data))
+
 
     def test_channel_list(self):
         c = Client()
-        response = c.post("/api/1.0/channeladd?s="+self.clientId, {'name': 'testchannel'})
+        response = c.post("/api/1.0/channel?s="+self.clientId, {'name': 'testchannel', 'x' : 0})
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response['Content-Type'], "application/json")
 
-        channelid = json.loads(response.content)['channel']
-        self.assertEqual(len(Channel.objects.filter(pk = channelid)), 1)
+        channelid = -1
+        data = response.content
+        self.assertFalse('error' in json.loads(data), data)
 
-        response = c.get("/api/1.0/channellist?s="+self.clientId)
+        for c in json.loads(response.content):
+            if c['name'] == 'testchannel':
+                channelid = c['channel']
+
+        self.assertEqual(Channel.objects.filter(pk = channelid, status = Channel.STATUS_ALIVE).count(), 1)
+
+        c = Client()
+        response = c.get("/api/1.0/channel?s="+self.clientId)
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response['Content-Type'], "application/json")
         data = json.loads(response.content)
-        self.assertFalse(u'error' in data)
+        self.assertFalse(u'error' in data, data)
 
         found = False
         for d in data:
-            if d['channel'] == channelid and d['channel_name'] == 'testchannel':
+            if d['channel'] == channelid and d['name'] == 'testchannel':
                 found = True
         self.assertTrue(found)
 
@@ -188,24 +207,30 @@ class ChannelRelayAPITest(TestCase):
 
     def _addChannel(self):
         c = Client()
-        response = c.post("/api/1.0/channeladd?s="+self.clientId, {'name': 'testchannel'})
+        response = c.post("/api/1.0/channel?s="+self.clientId, {'name': 'testchannel', 'x': 0})
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response['Content-Type'], "application/json")
         data = json.loads(response.content)
-        self.assertFalse(u'error' in data)
+        self.assertFalse(u'error' in data, data)
 
-        self.channelid = data['channel']
+        self.channelid = None
+        for c in data:
+            if c['name'] == 'testchannel':
+                self.channelid = str(c['channel'])
+                break
+        self.assertTrue(self.channelid is not None)
 
 
     def test_channelrelay_create(self):
         c = Client()
-        response = c.post("/api/1.0/channelrelayadd?s="+self.clientId, {'channel': self.channelid})
+        response = c.post("/api/1.0/channel/"+self.channelid+"/relay?s="+self.clientId, {'x' : 1})
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response['Content-Type'], "application/json")
         data = json.loads(response.content)
-        self.assertFalse(u'error' in data)
+        self.assertFalse(u'error' in data, data)
+
         found = False
         for k in data:
             if k == self.clientId:
@@ -215,17 +240,17 @@ class ChannelRelayAPITest(TestCase):
 
     def test_channelrelay_delete(self):
         c = Client()
-        response = c.post("/api/1.0/channelrelayadd?s="+self.clientId, {'channel': self.channelid})
+        response = c.post("/api/1.0/channel/"+self.channelid+"/relay?s="+self.clientId, {'x': 2})
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response['Content-Type'], "application/json")
-        self.assertEqual(len(ChannelRelay.objects.filter(channel = Channel.objects.get(pk = self.channelid), client = SignClient.objects.get(externid = self.clientId))), 1)
+        self.assertEqual(ChannelRelay.objects.filter(channel = Channel.objects.get(pk = self.channelid), client = SignClient.objects.get(externid = self.clientId)).count(), 1)
 
-        response = c.post("/api/1.0/channelrelaydel?s="+self.clientId)
+        response = c.post("/api/1.0/channel/"+self.channelid+"/relay?s="+self.clientId)
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response['Content-Type'], "application/json")
         data = json.loads(response.content)
-        self.assertFalse(u'error' in data)
+        self.assertFalse(u'error' in data, data)
         found = False
         for k in data:
             if k == self.clientId:
@@ -237,16 +262,16 @@ class ChannelRelayAPITest(TestCase):
     def test_channelrelay_list(self):
         c = Client()
 
-        response = c.post("/api/1.0/channelrelayadd?s="+self.clientId, {'channel': self.channelid})
+        response = c.get("/api/1.0/channel/"+self.channelid+"/relay?s="+self.clientId)
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response['Content-Type'], "application/json")
 
 
-        response = c.get("/api/1.0/channelrelaylist?s="+self.clientId+"&channel=" + str(self.channelid ))
+        response = c.get("/api/1.0/channel/"+self.channelid+"/relay?s="+self.clientId)
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response['Content-Type'], "application/json")
         data = json.loads(response.content)
-        self.assertFalse(u'error' in data)
+        self.assertFalse(u'error' in data, data)
         found = False
         for k in data:
             if k == self.clientId:

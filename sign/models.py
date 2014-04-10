@@ -36,10 +36,12 @@ class Channel(models.Model):
     status  = models.IntegerField(choices = CHANNEL_STATUS, default = STATUS_ALIVE)
 
 class ChannelRelay(models.Model):
-    STATUS_ALIVE = 0
-    STATUS_DEAD = 1
+    STATUS_PROSPECTIVE = 0
+    STATUS_ALIVE = 1
+    STATUS_DEAD = 2
 
     RELAY_STATUS = (
+        (STATUS_PROSPECTIVE, "prospective"),
         (STATUS_ALIVE, "alive"),    
         (STATUS_DEAD,  "dead"),
     )

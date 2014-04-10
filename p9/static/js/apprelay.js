@@ -145,21 +145,27 @@ visionApp.controller('viewCtrl', function($scope, $http, $q) {
 
 
     $scope.startStreaming = function() {
-        // retrieve client list for this channel
-        $http.get("/api/1.0/channelrelaylist?" + $.param({s: $scope.local_id, channel: $scope.channel_id}))
+        $http.post("/api/1.0/channel/"+$scope.channel_id+"/relay?" + $.param({s: $scope.local_id}), {'x': 0}).success(
+          $http.get("/api/1.0/channel/"+$scope.channel_id+"/relay?" + $.param({s: $scope.local_id}))
             .success(function (retval) {
                 console.log("channel relay list", retval);
                 if (retval.error) {
                     $scope.alertAdd("danger", retval.error);
                     console.log("error while receiving data", retval.error);
                 } else {
-                    var c = new Object();
-                    c.s = retval[0];
-                    $scope.remotes.push(c);
-                    $scope.doConnect(c);
+                    var i;
+                    for (i == 0; i < retval.length; i++) {
+                        if (retval[i].crs == 1) {
+                            var c = new Object();
+                            c.s = retval[i].s;
+                            $scope.remotes.push(c);
+                        }
+                    }
+                    // TODO: do a better algorithm of selecting connecting peer
+                    $scope.doConnect($scope.remotes[0]);
                 }
-
-            });
+            })
+        );
     }
 
     /**

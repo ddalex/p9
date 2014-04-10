@@ -14,7 +14,8 @@ from sign.models import Channel, ChannelRelay
 # parameter names definition
 PARAM_ERROR = 'error'
 PARAM_CHANNEL = 'channel'
-PARAM_CHANNELNAME = 'channel_name'
+PARAM_CHANNELNAME = 'name'
+PARAM_STATUS = 'x'
 
 
 class CallError(Exception):
@@ -50,6 +51,7 @@ def must_have_aliveclient(function):
 
 def client_disconnect(clientlist):
     for c in clientlist:
+        c.channelrelay_set.update(status = ChannelRelay.STATUS_DEAD)
         c.channel_set.update(status = Channel.STATUS_DEAD)
         c.status = Client.STATUS_DEAD
         c.save()        
@@ -161,116 +163,60 @@ def channelcreate(request):
     return render(request, 'channelcreate.html')
 
 # UI interaction
-@csrf_exempt    # TODO: remove after ALPHA stage, implement proper CSRF protection
-@must_have_externid
-@must_have_aliveclient
-def xhr_channeladd(request, **kwargs):
-    try:
-        if request.method != "POST":
-            raise CallError("must be POST-called")
-
-        client = kwargs['client']
-        channel_name = request.POST.get('name', '')
-        if len(channel_name) == 0:
-            raise CallError("did not get the name parameter")
-
-        try:
-            channel = Channel.objects.create(master = client, 
-            name = channel_name, 
-            )
-        except IntegrityError:
-            raise CallError("Channel name already taken")
-
-        channel.status = Channel.STATUS_ALIVE
-        channel.created = datetime.now()
-        channel.save()
-
-        return HttpResponse(json.dumps({'s': client.externid, PARAM_CHANNEL: channel.pk}), content_type = "application/json")
-    except CallError as e:
-        return HttpResponse(json.dumps({PARAM_ERROR: str(e)}), content_type = "application/json")
 
 @csrf_exempt    # TODO: remove after ALPHA stage, implement proper CSRF protection
 @must_have_externid
 @must_have_aliveclient
-def xhr_channeldel(request, **kwargs):
+def xhr_channel(request, **kwargs):
     try:
-        if request.method != "POST":
-            raise CallError("must be POST-called")
-
-        client = kwargs['client']
-        channel_pk = int(request.POST.get(PARAM_CHANNEL, -1))
-        if channel_pk < 0:
-            raise CallError("did not get the channel parameter")
-
-        channel = Channel.objects.get( pk = channel_pk, master = client, status = Channel.STATUS_ALIVE )
-        channel.status = Channel.STATUS_DEAD
-        channel.save()
-
-        return HttpResponse(json.dumps({'s': client.externid}), content_type = "application/json")
-    except (CallError, Channel.DoesNotExist) as e:
-        return HttpResponse(json.dumps({PARAM_ERROR: str(e)}), content_type = "application/json")
-
-
-@csrf_exempt    # TODO: remove after ALPHA stage, implement proper CSRF protection
-@must_have_externid
-@must_have_aliveclient
-def xhr_channellist(request, **kwargs):
-    try:
+        client_disconnect(Client.objects.filter(status=0).filter(updated__lt = datetime.now() - timedelta(seconds = 10)))
+        client = kwargs['client']        
+        if request.method == "POST":
+            channel_pk = int(request.POST.get(PARAM_CHANNEL, -1))
+            channel_name = request.POST.get(PARAM_CHANNELNAME, '')
+            status = int(request.POST.get(PARAM_STATUS, -1))
+            if (len(channel_name) > 0 and status == Channel.STATUS_ALIVE):
+                # create
+                channel = Channel.objects.create(master = client, 
+                     name = channel_name,
+                     status = status,
+                )
+            elif (channel_pk > -1 and status == Channel.STATUS_DEAD):
+                # delete
+                channel = Channel.objects.get( pk = channel_pk, master = client, status = Channel.STATUS_ALIVE )
+                channel.status = Channel.STATUS_DEAD
+                channel.save()
+            else:   
+                raise CallError("Unknown action requested") 
+        
         return HttpResponse(json.dumps( [{PARAM_CHANNEL: x.pk, PARAM_CHANNELNAME: x.name} for x in Channel.objects.filter(status = Channel.STATUS_ALIVE)]), content_type = "application/json")
-    except CallError as e:
+    except (IntegrityError, CallError, Channel.DoesNotExist) as e:
         return HttpResponse(json.dumps({PARAM_ERROR: str(e)}), content_type = "application/json")
+
 
 @csrf_exempt    # TODO: remove after ALPHA stage, implement proper CSRF protection
 @must_have_externid
 @must_have_aliveclient
-def xhr_channelrelayadd(request, **kwargs):
+def xhr_channelrelay(request, *args, **kwargs):
     try:
-        if request.method != "POST":
-            raise CallError("must be POST-called")
+        client_disconnect(Client.objects.filter(status=0).filter(updated__lt = datetime.now() - timedelta(seconds = 10)))
 
         client = kwargs['client']
-        channelid = int(request.POST.get(PARAM_CHANNEL, -1))
-        channel = Channel.objects.get(pk = channelid, status = Channel.STATUS_ALIVE)
-        cr, created = ChannelRelay.objects.get_or_create(channel = channel, client = client)
-        cr.status = ChannelRelay.STATUS_ALIVE
-        cr.updated = datetime.now()
-        cr.save()
-        return xhr_channelrelaylist(request, channel = channel)
-    except (Channel.DoesNotExist, CallError) as e:
+        channel_pk = kwargs['channel_id']
+        channel = Channel.objects.get(pk = channel_pk, status = Channel.STATUS_ALIVE)
+        if request.method == "POST":    
+            status = int(request.POST.get(PARAM_STATUS, ChannelRelay.STATUS_PROSPECTIVE))
+            cr, created = ChannelRelay.objects.get_or_create(channel = channel, client = client)
+            cr.status = status
+            cr.updated = datetime.now()
+            cr.save()
+
+        return HttpResponse(json.dumps( 
+                [{ 's': x.client.externid, 'x':x.status }
+                      for x in ChannelRelay.objects.filter(channel = channel, 
+                        status__in = [ChannelRelay.STATUS_ALIVE, ChannelRelay.STATUS_PROSPECTIVE])]
+                 + [{ 's': channel.master.externid, 'x': channel.master.status}]), 
+                content_type = "application/json")
+    except (IntegrityError, CallError, ChannelRelay.DoesNotExist) as e:
         return HttpResponse(json.dumps({PARAM_ERROR: str(e)}), content_type = "application/json")
-
-@csrf_exempt    # TODO: remove after ALPHA stage, implement proper CSRF protection
-@must_have_externid
-@must_have_aliveclient
-def xhr_channelrelaydel(request, **kwargs):
-    try:
-        if request.method != "POST":
-            raise CallError("must be POST-called")
-
-        client = kwargs['client']
-        cr = ChannelRelay.objects.get(client = client, status = ChannelRelay.STATUS_ALIVE)
-        channel = cr.channel
-        cr.status = ChannelRelay.STATUS_DEAD
-        cr.updated = datetime.now()
-        cr.save()
-        return xhr_channelrelaylist(request, channel = channel)
-    except (Channel.DoesNotExist, CallError) as e:
-        return HttpResponse(json.dumps({PARAM_ERROR: str(e)}), content_type = "application/json")
-
-@csrf_exempt    # TODO: remove after ALPHA stage, implement proper CSRF protection
-@must_have_externid
-@must_have_aliveclient
-def xhr_channelrelaylist(request, **kwargs):
-    try:
-        if 'channel' in kwargs:
-            channel = kwargs['channel']
-        else:
-            try:
-                channel = Channel.objects.get(pk = int(request.GET.get(PARAM_CHANNEL, -1)), status = Channel.STATUS_ALIVE)
-            except ValueError:
-                raise CallError("Invalid channel id")
-        return HttpResponse(json.dumps( [x.client.externid for x in ChannelRelay.objects.filter(channel = channel, status = ChannelRelay.STATUS_ALIVE)]
-                + [channel.master.externid]), content_type = "application/json")
-    except (Channel.DoesNotExist, CallError) as e:
-        return HttpResponse(json.dumps({PARAM_ERROR: str(e)}), content_type = "application/json")
-
+    
