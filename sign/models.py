@@ -36,9 +36,9 @@ class Channel(models.Model):
     status  = models.IntegerField(choices = CHANNEL_STATUS, default = STATUS_ALIVE)
 
 class ChannelRelay(models.Model):
-    STATUS_PROSPECTIVE = 0
-    STATUS_ALIVE = 1
-    STATUS_DEAD = 2
+    STATUS_ALIVE = 0
+    STATUS_DEAD = 1
+    STATUS_PROSPECTIVE = 2
 
     RELAY_STATUS = (
         (STATUS_PROSPECTIVE, "prospective"),
@@ -48,4 +48,4 @@ class ChannelRelay(models.Model):
     channel = models.ForeignKey(Channel)
     client = models.ForeignKey(Client)
     updated = models.DateTimeField(null=True)
-    status = models.IntegerField(choices = RELAY_STATUS, default = STATUS_ALIVE)
+    status = models.IntegerField(choices = RELAY_STATUS, default = STATUS_PROSPECTIVE)

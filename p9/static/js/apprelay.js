@@ -12,46 +12,75 @@ visionApp.controller('viewCtrl', function($scope, $http, $q) {
         r.lpc = rtcGetConnection( ROLE.CALLER, r.s, function (state) { stateCB(r, state); }, $scope._streamCB, dataCB);
     }
 
-    // waiting generates it's own r
+    // waiting generates it's own r when it receives a call
     $scope.callWait = function (stateCB, dataCB) {
         // we want to receive calls
-        smsRegisterCallback("sdp", function receiveSDP(sender, message) {
-            var i;
+        
+        function _receiveSDP(sender, message) {
+            function _remoteForSender() {
+                var i;
+                for (i = 0; i < $scope.remotes.length; i++) 
+                    if ($scope.remotes[i].s == sender) {
+                        return $scope.remotes[i];
+                    }
+                return undefined;
+            }
+
+            function _setRtcConnection(r) {
+                console.log("got remote call from ", r, msg);
+    
+                r.lpc = rtcGetConnection( ROLE.RECEIVER, sender, function(state) { stateCB(r, state); }, 
+                        function(stream, op){}, dataCB );
+                r.lpc.addStream($scope._stream);
+                r.lpc.setRemoteDescription(r.lpc.buildSessionDescription(msg),
+                    function () {
+                        console.log("success setting remote");
+                        r.lpc.createSDPResponse();
+                    }, console.log); // we got another peer's offer
+            }
+
             var msg = JSON.parse(message);
             // SDPs from already connected peers are to be ignored
             for (i = 0; i < $scope.peers.length; i++)
                 if ($scope.peers[i].s == sender)
                     return;
 
-            var r = undefined;
-            for (i = 0; i < $scope.remotes.length; i++)
-                if ($scope.remotes[i].s == sender) {
-                  r = $scope.remotes[i];
-                }
+            var r = _remoteForSender();
 
             if (r === undefined) {
-              // we don't accept calls from unregistered peers
-              throw "Cannot accept call from unknown peer " + sender;
+                // fetch new remotes from the server
+                console.log("fetching channelrelays");
+                $http.get ("/api/1.0/channel/" + $scope.channel_id + "/relay?" + $.param({s: $scope.local_id}))
+                  .success(
+                    function (data) {
+                        console.log("got channel relays", data);
+                        var j;
+                        $scope.remotes = [];
+                        for (j = 0; j < data.length; j++) {
+                          if (data[j].s != $scope.local_id) {
+                            r = new Object();
+                            r.s = data[j].s;
+                            if ($scope.peers._indexOfS(r) == -1) {
+                                $scope.remotes.push(r);
+                            }
+                          }
+                        }
+                        r = _remoteForSender();
+                        if (r != undefined)
+                            _setRtcConnection(r);
+                    }
+                )
+                .error(
+                    function() { console.log("error") }
+                );
+            } else {
+                _setRtcConnection(r);
             }
-            console.log("got remote call from ", r, msg);
-
-            // if we dont' have video, create it
-            // for now, just refuse to answer
-            if (! $scope._hasVideo ) {
-              return;
-            }
-
-            r.lpc = rtcGetConnection( ROLE.RECEIVER, sender, function(state) { stateCB(r, state); }, $scope._streamCB, dataCB );
-            // get local playback stream
-            r.lpc.addStream($scope._stream);
-
-            r.lpc.setRemoteDescription(r.lpc.buildSessionDescription(msg),
-                function () {
-                        console.log("success setting remote");
-                        r.lpc.createSDPResponse();
-                }, console.log); // we got another peer's offer
-         });
+         }
+         
+         smsRegisterCallback("sdp", _receiveSDP);
     }
+
 
 
     $scope._p2pConnectionStateChange = function (r, state) {
@@ -62,7 +91,12 @@ visionApp.controller('viewCtrl', function($scope, $http, $q) {
                 console.log("p2p: we have a connection ");
                 $scope.addConnection(r);
                 $scope.$digest();
-            }
+            
+                $scope.callWait(
+                function(r, state) { console.log("p2p: incoming call state updated", r, state);  $scope._p2pConnectionStateChange(r, state); }, 
+                function(data) { console.log("p2p: incoming call data callback", data); }
+            );
+}
         }
         // if r in peers, we expect a disconnect
         else if ( $scope.peers._indexOfS(r) >= 0 ) {
@@ -85,6 +119,7 @@ visionApp.controller('viewCtrl', function($scope, $http, $q) {
     }
 
     $scope.doConnect = function (r) {
+        $scope.broadcast_status = "STARTING CONNECTION";
         console.log("trigger connection to ", r);
         $scope._callRemote(r, 
             function(r, state) { 
@@ -100,6 +135,8 @@ visionApp.controller('viewCtrl', function($scope, $http, $q) {
 
 
     $scope.removeConnection = function (c) {
+        $http.post("/api/1.0/channel/"+$scope.channel_id+"/relay?" + $.param({s: $scope.local_id}),
+            {'x': 1}).success( function(data) {
         var p = $scope.peers._indexOfS(c);
         if (p > -1) {
             $scope.peers.splice(p, 1);
@@ -108,9 +145,13 @@ visionApp.controller('viewCtrl', function($scope, $http, $q) {
         var p = $scope.remotes._indexOfS(c);
         if (p == -1)
           $scope.remotes.push(p);
+        });
     }
 
+    $scope.crtconnection = undefined;
     $scope.addConnection = function (c) {
+        $http.post("/api/1.0/channel/"+$scope.channel_id+"/relay?" + $.param({s: $scope.local_id}),
+            {'x': 0}).success( function(data) {
         var p = $scope.peers._indexOfS(c);
         if (p == -1)
             $scope.peers.push(c);
@@ -118,6 +159,9 @@ visionApp.controller('viewCtrl', function($scope, $http, $q) {
         var p = $scope.remotes._indexOfS(c);
         if (p > -1)
           $scope.remotes.splice(p, 1);
+        });
+
+        $scope.crtconnection = c;
     }
 
     $scope.updateRemoteClients = function(clients) {
@@ -145,27 +189,39 @@ visionApp.controller('viewCtrl', function($scope, $http, $q) {
 
 
     $scope.startStreaming = function() {
-        $http.post("/api/1.0/channel/"+$scope.channel_id+"/relay?" + $.param({s: $scope.local_id}), {'x': 0}).success(
-          $http.get("/api/1.0/channel/"+$scope.channel_id+"/relay?" + $.param({s: $scope.local_id}))
-            .success(function (retval) {
+        $scope.broadcast_status = "REGISTERING";
+        $http.post("/api/1.0/channel/"+$scope.channel_id+"/relay?" + $.param({s: $scope.local_id})).success(
+            function(retval) { 
+            try {
                 console.log("channel relay list", retval);
                 if (retval.error) {
                     $scope.alertAdd("danger", retval.error);
                     console.log("error while receiving data", retval.error);
                 } else {
                     var i;
-                    for (i == 0; i < retval.length; i++) {
-                        if (retval[i].crs == 1) {
+                    $scope.remotes = [];
+                    for (i = 0; i < retval.length; i++) {
+                        if (retval[i].x == 0) {   // we only connect to STATUS_ALIVE remotes
                             var c = new Object();
                             c.s = retval[i].s;
                             $scope.remotes.push(c);
                         }
                     }
                     // TODO: do a better algorithm of selecting connecting peer
-                    $scope.doConnect($scope.remotes[0]);
-                }
-            })
-        );
+                    var r = $scope.remotes[0];
+                    console.log("remotes: ", $scope.remotes );
+                    if (r === undefined) throw "Cannot find alive peer";
+                    $scope.doConnect(r);
+                } 
+            } catch (e) {
+                $scope.broadcast_status = e;
+            }
+            }
+        )
+    }
+    $scope.stopStreaming = function() {
+        if ($scope.crtconnection)
+           $scope.removeConnection($scope.crtconnection); 
     }
 
     /**
@@ -243,8 +299,8 @@ visionApp.controller('viewCtrl', function($scope, $http, $q) {
         $scope.all_alerts.splice(idx, 1);
     }
 
-    $scope.broadcast_status = "WAITING";
     
+    $scope.broadcast_status = "WAITING";
 
 });   // end of controller scope
 
@@ -265,6 +321,8 @@ $(document).ready( function () {
 
 window.onbeforeunload = function () {
     console.log("almost dead");
+    var scope = angular.element("div#main").scope();
+    scope.stopStreaming();
     smsStopSystem();
 };
 

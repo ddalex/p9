@@ -207,7 +207,14 @@ def xhr_channelrelay(request, *args, **kwargs):
         if request.method == "POST":    
             status = int(request.POST.get(PARAM_STATUS, ChannelRelay.STATUS_PROSPECTIVE))
             cr, created = ChannelRelay.objects.get_or_create(channel = channel, client = client)
-            cr.status = status
+            # enforce transition PROSPECTIVE -> ALIVE -> DEAD
+            if created:
+                cr.status = status
+            else:
+                if cr.status == ChannelRelay.STATUS_PROSPECTIVE and status == ChannelRelay.STATUS_ALIVE or status == ChannelRelay.STATUS_DEAD:
+                    cr.status = status
+                else:
+                    raise CallError("Invalid CR lifecycle transition")
             cr.updated = datetime.now()
             cr.save()
 
@@ -217,6 +224,6 @@ def xhr_channelrelay(request, *args, **kwargs):
                         status__in = [ChannelRelay.STATUS_ALIVE, ChannelRelay.STATUS_PROSPECTIVE])]
                  + [{ 's': channel.master.externid, 'x': channel.master.status}]), 
                 content_type = "application/json")
-    except (IntegrityError, CallError, ChannelRelay.DoesNotExist) as e:
+    except (IntegrityError, CallError, Channel.DoesNotExist, ChannelRelay.DoesNotExist) as e:
         return HttpResponse(json.dumps({PARAM_ERROR: str(e)}), content_type = "application/json")
     

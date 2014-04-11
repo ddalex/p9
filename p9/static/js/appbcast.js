@@ -7,42 +7,77 @@ visionApp.controller('viewCtrl', function($scope, $http, $q) {
 
     console.log($q);
 
+
+
+
+
+
     // waiting generates it's own r when it receives a call
     $scope.callWait = function (stateCB, dataCB) {
         // we want to receive calls
-        smsRegisterCallback("sdp", function receiveSDP(sender, message) {
-            var i;
+        
+        function _receiveSDP(sender, message) {
+            function _remoteForSender() {
+                var i;
+                for (i = 0; i < $scope.remotes.length; i++) 
+                    if ($scope.remotes[i].s == sender) {
+                        return $scope.remotes[i];
+                    }
+                return undefined;
+            }
+
+            function _setRtcConnection(r) {
+                console.log("got remote call from ", r, msg);
+    
+                r.lpc = rtcGetConnection( ROLE.RECEIVER, sender, function(state) { stateCB(r, state); }, $scope.streamCB, dataCB );
+                r.lpc.addStream($scope._stream);
+                r.lpc.setRemoteDescription(r.lpc.buildSessionDescription(msg),
+                    function () {
+                        console.log("success setting remote");
+                        r.lpc.createSDPResponse();
+                    }, console.log); // we got another peer's offer
+            }
+
             var msg = JSON.parse(message);
             // SDPs from already connected peers are to be ignored
             for (i = 0; i < $scope.peers.length; i++)
                 if ($scope.peers[i].s == sender)
                     return;
 
-            var r = undefined;
-            for (i = 0; i < $scope.remotes.length; i++)
-                if ($scope.remotes[i].s == sender) {
-                  r = $scope.remotes[i];
-                }
+            var r = _remoteForSender();
 
             if (r === undefined) {
-                $http
-                r = new Object();
-                r.s = sender;
-                $scope.remotes.push(r);
+                // fetch new remotes from the server
+                console.log("fetching channelrelays");
+                $http.get ("/api/1.0/channel/" + $scope.channel_id + "/relay?" + $.param({s: $scope.local_id}))
+                  .success(
+                    function (data) {
+                        console.log("got channel relays", data);
+                        var j;
+                        $scope.remotes = [];
+                        for (j = 0; j < data.length; j++) {
+                          if (data[j].s != $scope.local_id) {
+                            r = new Object();
+                            r.s = data[j].s;
+                            if ($scope.peers._indexOfS(r) == -1) {
+                                $scope.remotes.push(r);
+                            }
+                          }
+                        }
+                        r = _remoteForSender();
+                        if (r != undefined)
+                            _setRtcConnection(r);
+                    }
+                )
+                .error(
+                    function() { console.log("error") }
+                );
+            } else {
+                _setRtcConnection(r);
             }
-            console.log("got remote call from ", r, msg);
-            $scope.addConnection
-
-            r.lpc = rtcGetConnection( ROLE.RECEIVER, sender, function(state) { stateCB(r, state); }, $scope.streamCB, dataCB );
-            // get local playback stream
-            r.lpc.addStream($scope._stream);
-
-            r.lpc.setRemoteDescription(r.lpc.buildSessionDescription(msg),
-                function () {
-                        console.log("success setting remote");
-                        r.lpc.createSDPResponse();
-                }, console.log); // we got another peer's offer
-         });
+         }
+         
+         smsRegisterCallback("sdp", _receiveSDP);
     }
 
 
@@ -244,8 +279,20 @@ visionApp.controller('viewCtrl', function($scope, $http, $q) {
                 $scope.alertAdd("danger", retval.data.error);
                 console.log("error while receiving data", retval);
             }
-            $scope.channel_id = retval.data.channel;
-            
+            $scope.channel_id = undefined;
+            var i;
+            for (i = 0; i < retval.data.length; i++) {
+                if (retval.data[i].name == $scope.channel_name) {
+                    $scope.channel_id = retval.data[i].channel;
+                    break;
+                }
+            }
+
+            if ($scope.channel_id === undefined) {
+                $scope.alertAdd("danger", "Registration failed");
+                return;
+            }
+
             $scope.callWait(
                 function(r, state) { console.log("p2p: incoming call state updated", r, state);  $scope._p2pConnectionStateChange(r, state); }, 
                 function(data) { console.log("p2p: incoming call data callback", data); }
