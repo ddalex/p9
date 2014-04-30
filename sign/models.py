@@ -13,10 +13,13 @@ class Client(models.Model):
 
     externid  = models.CharField(max_length=64, unique = True)
     status  = models.IntegerField(choices = CLIENT_STATUS, default = STATUS_ALIVE)
+    ip      = models.GenericIPAddressField(blank = True)
+    useragent = models.CharField(max_length=256, blank = True)
+    created = models.DateTimeField(auto_now_add = True) 
     updated = models.DateTimeField(null=True)
 
     def __unicode__(self):
-        return "Client " + self.externid
+        return "Client " + self.externid + " " + self.ip
 
 class Message(models.Model):
     client  = models.ForeignKey(Client)

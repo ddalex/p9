@@ -22,3 +22,10 @@ class ClientLogAdmin(admin.ModelAdmin):
         return super(ClientLogAdmin, self).formfield_for_foreignkey(db_field, request, **kwargs)
 
 admin.site.register(ClientLog, ClientLogAdmin)
+
+class ClientAdmin(admin.ModelAdmin):
+    list_display = ("status", "externid", "ip", "created", "useragent")
+    list_filter = ("status", )
+    ordering = ("status",)
+
+admin.site.register(Client, ClientAdmin)

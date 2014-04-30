@@ -78,9 +78,19 @@ def xhr_client(request):
         if request.method == "POST":
             client_disconnect(Client.objects.filter(status=0).filter(updated__lt = datetime.now() - timedelta(seconds = 10)))
 
+            def get_client_ip(request):
+                x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
+                if x_forwarded_for:
+                    ip = x_forwarded_for.split(',')[0]
+                else:
+                    ip = request.META.get('REMOTE_ADDR')
+                return ip
+
             # update client
             crtclient, created = Client.objects.get_or_create(
                     externid=request.GET['s'],
+                    ip  = get_client_ip(request),
+                    useragent = request.META.get('HTTP_USER_AGENT')
                 )
             if not created:
                 if crtclient.status == Client.STATUS_ALIVE:
