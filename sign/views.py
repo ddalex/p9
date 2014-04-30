@@ -214,7 +214,7 @@ def xhr_channelrelay(request, *args, **kwargs):
                 if cr.status == ChannelRelay.STATUS_PROSPECTIVE and status == ChannelRelay.STATUS_ALIVE or status == ChannelRelay.STATUS_DEAD:
                     cr.status = status
                 else:
-                    raise CallError("Invalid CR lifecycle transition")
+                    raise CallError("Invalid CR lifecycle transition from %d to %d" % (cr.status, status))
             cr.updated = datetime.now()
             cr.save()
 

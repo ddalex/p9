@@ -134,7 +134,6 @@ INSTALLED_APPS = (
     'django.contrib.admin',
     # Uncomment the next line to enable admin documentation:
     # 'django.contrib.admindocs',
-    'allaccess',
     'south',
     'sign',
     'p9',
@@ -144,7 +143,7 @@ AUTHENTICATION_BACKENDS = (
     # Default backend
     'django.contrib.auth.backends.ModelBackend',
     # Additional backend
-    'allaccess.backends.AuthorizedServiceBackend',
+    # 'allaccess.backends.AuthorizedServiceBackend',
 )
 
 

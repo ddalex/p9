@@ -11,7 +11,6 @@ import sign.views
 urlpatterns = patterns('',
     # Examples:
     url(r'^$', 'sign.views.home', name='home'),
-    url(r'^accounts/', include('allaccess.urls')),
     # url(r'^p9/', include('p9.foo.urls')),
     url(r'^channelcreate', sign.views.channelcreate),
     url(r'^channelview/(?P<channelid>\d+)/', sign.views.channelview),
