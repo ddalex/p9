@@ -8,7 +8,7 @@ from django.db import IntegrityError
 import time
 import json
 
-from sign.models import Message, Client
+from sign.models import Message, Client, ClientLog
 from sign.models import Channel, ChannelRelay
 
 # parameter names definition
@@ -226,4 +226,38 @@ def xhr_channelrelay(request, *args, **kwargs):
                 content_type = "application/json")
     except (IntegrityError, CallError, Channel.DoesNotExist, ChannelRelay.DoesNotExist) as e:
         return HttpResponse(json.dumps({PARAM_ERROR: str(e)}), content_type = "application/json")
-    
+
+@csrf_exempt
+@must_have_externid
+@must_have_aliveclient
+def xhr_logpost(request, *args, **kwargs):
+    if request.method == "POST":
+        try:
+            client = kwargs['client']
+            tag = request.POST.get("tag", '')
+            log = request.POST.get("log", '')
+
+            if len(tag) > 0 or len(log) > 0:
+                ClientLog.objects.create(client = client, tag = tag, log = log)
+
+            return HttpResponse(json.dumps({}), content_type = "application/json")
+
+        except Exception as e:
+            return HttpResponse(json.dumps({PARAM_ERROR: str(e)}), content_type = "application/json")
+    return HttpResponse(json.dumps({PARAM_ERROR: "call not valid"}), content_type = "application/json")
+
+
+from django.contrib.auth.decorators import user_passes_test
+
+@user_passes_test(lambda u: u.is_superuser)
+def log(request, *args, **kwargs):
+    if request.method == "GET":
+        t = request.GET.get("t", None)
+        if t is not None:
+            pass
+            return HttpResponse(json.dumps([{"tag": x.tag, "log": x.log} for x in Client.objects.get(externid = t).clientlog_set.all()]),
+                 content_type = "application/json")
+
+        return render(request, "clientlog.html", { 'clients': Client.objects.filter(status=0) })
+    else:
+        return HttpResponse(json.dumps({PARAM_ERROR: "call not valid"}), content_type = "application/json")

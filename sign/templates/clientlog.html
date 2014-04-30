@@ -1,0 +1,50 @@
+{%extends "base.html"%}
+<!-- vim: set tabstop=2 expandtab ai: -->
+{% load staticfiles %}
+
+
+{%block "mainbody"%}
+<script src="{% static "js/appcommon.js" %}"></script>
+<script>
+  var logviewApp = angular.module('logview', ['ui.bootstrap'], angular_formpost);
+  logviewApp.config(function($interpolateProvider) {
+    $interpolateProvider.startSymbol("{[");
+    $interpolateProvider.endSymbol("]}");
+  });
+
+  logviewApp.controller('appCtrl', function($scope, $http, $q) {
+    $scope.logset = [];
+
+    $scope.logUpdate = function() {
+      console.log("selected", $scope.clientid);
+      $http.get("/log?" + $.param({t: $scope.clientid}))
+        .success(
+          function (data) {
+            $scope.logset = data;
+          }
+        )
+        .error(
+          function (data, status) {
+              alert("Failed log retrieval call " + status);
+          }
+        );
+    }
+  });
+
+ 
+</script>
+
+<div id="main" role="main" ng-app="logview" ng-controller="appCtrl" class="container">
+  <div class="row">
+   <select size="5" ng-model="clientid" ng-change="logUpdate()" class="span12">
+    {% for i in clients %}
+      <option value={{i.externid}}>{{i.externid}} - {{i.clientlog_set.all|length}}</option>
+    {% endfor %}
+   </select>
+   <a href="{% url "django.contrib.auth.views.logout" %}">Logout</a>
+  </div>
+  <div class="row">
+    <div ng-repeat="log in logset">{[log.tag]} {[log.log]}</div>      
+  </div>
+</div>
+{%endblock%}

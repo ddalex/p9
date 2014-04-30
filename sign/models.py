@@ -15,6 +15,9 @@ class Client(models.Model):
     status  = models.IntegerField(choices = CLIENT_STATUS, default = STATUS_ALIVE)
     updated = models.DateTimeField(null=True)
 
+    def __unicode__(self):
+        return "Client " + self.externid
+
 class Message(models.Model):
     client  = models.ForeignKey(Client)
     recipient = models.ForeignKey(Client, related_name = "recipient")
@@ -49,3 +52,9 @@ class ChannelRelay(models.Model):
     client = models.ForeignKey(Client)
     updated = models.DateTimeField(null=True)
     status = models.IntegerField(choices = RELAY_STATUS, default = STATUS_PROSPECTIVE)
+
+class ClientLog(models.Model):
+    client  = models.ForeignKey(Client)
+    tag     = models.CharField(max_length=32)
+    log     = models.TextField()
+    updated = models.DateTimeField(auto_now_add=True)
