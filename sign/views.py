@@ -248,7 +248,8 @@ def xhr_logpost(request, *args, **kwargs):
             log = request.POST.get("log", '')
 
             if len(tag) > 0 or len(log) > 0:
-                ClientLog.objects.create(client = client, tag = tag, log = log)
+                logobject = ClientLog.objects.create(client = client, tag = tag, log = log)
+                logobject.save()
 
             return HttpResponse(json.dumps({}), content_type = "application/json")
 
@@ -268,6 +269,9 @@ def log(request, *args, **kwargs):
             return HttpResponse(json.dumps([{"tag": x.tag, "log": x.log} for x in Client.objects.get(externid = t).clientlog_set.all()]),
                  content_type = "application/json")
 
+        t = request.GET.get("type", None)
+        if t is not None:
+            return HttpResponse(json.dumps([{"externid": x.externid, "clientlog_count": x.clientlog_set.count()} for x in Client.objects.filter(status=0)]), content_type = "application/json")
         return render(request, "clientlog.html", { 'clients': Client.objects.filter(status=0) })
     else:
         return HttpResponse(json.dumps({PARAM_ERROR: "call not valid"}), content_type = "application/json")

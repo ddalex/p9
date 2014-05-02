@@ -1,15 +1,9 @@
 // vim: set tabstop=4 expandtab ai:
 
-visionApp.controller('viewCtrl', function($scope, $http, $q) {
+visionApp.controller('viewCtrl', function ($scope, $http, $q) {
     // both arrays hold "r" objects
     $scope.peers = [];
     $scope.remotes = [];
-
-    console.log($q);
-
-
-
-
 
 
     // waiting generates it's own r when it receives a call
@@ -27,32 +21,34 @@ visionApp.controller('viewCtrl', function($scope, $http, $q) {
             }
 
             function _setRtcConnection(r) {
-                console.log("got remote call from ", r, msg);
+                smsLog("bcast", "got remote call from ", r, msg);
     
                 r.lpc = rtcGetConnection( ROLE.RECEIVER, sender, function(state) { stateCB(r, state); }, $scope.streamCB, dataCB );
                 r.lpc.addStream($scope._stream);
                 r.lpc.setRemoteDescription(r.lpc.buildSessionDescription(msg),
                     function () {
-                        console.log("success setting remote");
+                        smsLog("bcast", "success setting remote");
                         r.lpc.createSDPResponse();
                     }, console.log); // we got another peer's offer
             }
 
             var msg = JSON.parse(message);
             // SDPs from already connected peers are to be ignored
-            for (i = 0; i < $scope.peers.length; i++)
-                if ($scope.peers[i].s == sender)
+            for (i = 0; i < $scope.peers.length; i++) {
+                if ($scope.peers[i].s == sender) {
                     return;
+                }
+            }
 
             var r = _remoteForSender();
 
             if (r === undefined) {
                 // fetch new remotes from the server
-                console.log("fetching channelrelays");
+                smsLog("bcast", "fetching channelrelays");
                 $http.get ("/api/1.0/channel/" + $scope.channel_id + "/relay?" + $.param({s: $scope.local_id}))
                   .success(
                     function (data) {
-                        console.log("got channel relays", data);
+                        smsLog("bcast", "got channel relays", data);
                         var j;
                         $scope.remotes = [];
                         for (j = 0; j < data.length; j++) {
@@ -70,7 +66,7 @@ visionApp.controller('viewCtrl', function($scope, $http, $q) {
                     }
                 )
                 .error(
-                    function() { console.log("error") }
+                    function() { smsLog("bcast", "error fetching channelrelays") }
                 );
             } else {
                 _setRtcConnection(r);
@@ -86,7 +82,7 @@ visionApp.controller('viewCtrl', function($scope, $http, $q) {
         if ( $scope.remotes._indexOfS(r) >= 0 ) {
             // we process the connect request
             if (state === "connected") {
-                console.log("p2p: we have a connection ");
+                smsLog("bcast", "p2p: we have a connection ");
                 $scope.addConnection(r);
                 $scope.$digest();
             }
@@ -94,13 +90,13 @@ visionApp.controller('viewCtrl', function($scope, $http, $q) {
         // if r in peers, we expect a disconnect
         else if ( $scope.peers._indexOfS(r) >= 0 ) {
             if (state === "disconnected") {
-                console.log("p2p: remote disconnected ");
+                smsLog("bcast", "p2p: remote disconnected ");
                 $scope.removeConnection(r);
                 $scope.$digest();
             }
         }
         else {
-          console.log("p2p: got a ", state, " for ", r);
+          smsLog("bcast", "p2p: unknown - got a ", state, " for ", r);
         }
     }
 
@@ -163,9 +159,8 @@ visionApp.controller('viewCtrl', function($scope, $http, $q) {
             // we got a video stream, let's display it
             var video = angular.element('video#video')[0];
             $scope._stream = stream;
-            console.log("streamCB: got stream ", stream);
             url = window.URL.createObjectURL(stream);
-            console.log("streamCB: localstream URL ",  url);
+            smsLog("bcast", "got local stream ", stream, "url ", url);
             video.src = url;
             video.onloadedmetadata = function(e) {
                 video.play();
@@ -189,7 +184,7 @@ visionApp.controller('viewCtrl', function($scope, $http, $q) {
     $scope.channel_name = undefined;
     $scope.alertAdd = function(type, msg) {
         var lalert ={'type': type, 'msg': msg};
-        console.log(lalert);
+        smsLog("bcast", "user facing alert", lalert);
         return $scope.all_alerts.push(lalert);
     }
     $scope.alertClose = function(idx) {
@@ -235,13 +230,14 @@ visionApp.controller('viewCtrl', function($scope, $http, $q) {
     $scope.bcastStop = function () {
         $http.post("/api/1.0/channel?" + $.param({s : $scope.local_id}), {'channel' : $scope.channel_id, 's': 1})
             .success( function (data) {
-                console.log("api: channeldel", data);
+                smsLog("bcast", "channeldel", data);
                 // to do: drop p2p connections
                 $scope._setStateStop();
             }
         )
     }
 
+    smsLog("bcast 2");
     $scope._bcastStart = function() {
         $scope.all_alerts = [];
         var promise = undefined;
@@ -271,13 +267,13 @@ visionApp.controller('viewCtrl', function($scope, $http, $q) {
                 },
                 function(data) {
                     $scope.alertAdd("danger", "We do not have a local video.");
-                    console.log(data);
+                    smsLog("bcast", data);
                 }
         ).then( function (retval) {
-            console.log("api: channeladd", retval);
+            smsLog("bcast", "channeladd", retval);
             if ('error' in retval.data) {
                 $scope.alertAdd("danger", retval.data.error);
-                console.log("error while receiving data", retval);
+                smsLog("bcast", "error while receiving data", retval);
             }
             $scope.channel_id = undefined;
             var i;
@@ -294,13 +290,13 @@ visionApp.controller('viewCtrl', function($scope, $http, $q) {
             }
 
             $scope.callWait(
-                function(r, state) { console.log("p2p: incoming call state updated", r, state);  $scope._p2pConnectionStateChange(r, state); }, 
-                function(data) { console.log("p2p: incoming call data callback", data); }
+                function(r, state) { smsLog("bcast", "incoming call state updated", r, state);  $scope._p2pConnectionStateChange(r, state); }, 
+                function(data) { smsLog("bcast", "incoming call data callback", data); }
             );
             // update the UI to mark broadcasting
             $scope._setStateBcast();
         },  function (data) { 
-            console.log("add failed ", data);
+            smsLog("bcast", "channel add failed ", data);
         });
     }
 
@@ -329,7 +325,7 @@ visionApp.controller('viewCtrl', function($scope, $http, $q) {
 
              // errorCallback
              function(err) {
-                console.log("getMedia: The following error occured: " + err);
+                smsLog("bcast", "The following error occured: " + err);
                 deffered.reject({msg:'err', data: err});
              }
 
@@ -353,7 +349,7 @@ $(document).ready( function () {
 });
 
 window.onbeforeunload = function () {
-    console.log("almost dead");
+    smsLog("bcast", "application closing");
     // TODO: close the channel if we're broadcasting
     var scope = angular.element("div#main").scope();
     scope.bcastStop();

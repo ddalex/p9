@@ -12,7 +12,13 @@
     $interpolateProvider.endSymbol("]}");
   });
 
-  logviewApp.controller('appCtrl', function($scope, $http, $q) {
+  logviewApp.controller('appCtrl', function($scope, $http, $q, $interval) {
+
+    $scope.clientset = [
+    {% for i in clients %}
+      { "externid" : "{{i.externid}}", "clientlog_count":{{i.clientlog_set.all|length}} },
+    {% endfor %}
+    ];
     $scope.logset = [];
 
     $scope.logUpdate = function() {
@@ -29,6 +35,23 @@
           }
         );
     }
+
+    $scope.clientUpdate = function() {
+      $http.get("/log?" + $.param({"type" : "client"}))
+        .success(
+          function (data) {
+            $scope.clientset = data;
+          }
+        )
+        .error(
+          function (data, status) {
+            alert("Failed client retrieval call " + status);
+//            $interval.cancel($scope.updateInterval); 
+          }
+        );
+    }
+
+    $scope.updateInterval = $interval( $scope.clientUpdate, 1000);
   });
 
  
@@ -37,9 +60,7 @@
 <div id="main" role="main" ng-app="logview" ng-controller="appCtrl" class="container">
   <div class="row">
    <select size="5" ng-model="clientid" ng-change="logUpdate()" class="span12">
-    {% for i in clients %}
-      <option value={{i.externid}}>{{i.externid}} - {{i.clientlog_set.all|length}}</option>
-    {% endfor %}
+      <option ng-repeat="i in clientset" value={[i.externid]}>{[i.externid]} - {[i.clientlog_count]}</option>
    </select>
    <a href="{% url "django.contrib.auth.views.logout" %}">Logout</a>
   </div>

@@ -7,7 +7,7 @@ visionApp.controller('viewCtrl', function($scope, $http, $q) {
 
     // we need to build an 'r' object and call this with stateCB and data dataCB
     $scope._callRemote = function (r, stateCB, dataCB) {
-        console.log("main: we call ", r.s);
+        smsLog("main", " we call ", r.s);
         $scope.broadcast_status = "CONNECTING";
         r.lpc = rtcGetConnection( ROLE.CALLER, r.s, function (state) { stateCB(r, state); }, $scope._streamCB, dataCB);
     }
@@ -27,16 +27,16 @@ visionApp.controller('viewCtrl', function($scope, $http, $q) {
             }
 
             function _setRtcConnection(r) {
-                console.log("got remote call from ", r, msg);
+                smsLog("relay", "got remote call from ", r, msg);
     
                 r.lpc = rtcGetConnection( ROLE.RECEIVER, sender, function(state) { stateCB(r, state); }, 
                         function(stream, op){}, dataCB );
                 r.lpc.addStream($scope._stream);
                 r.lpc.setRemoteDescription(r.lpc.buildSessionDescription(msg),
                     function () {
-                        console.log("success setting remote");
+                        smsLog("relay", "success setting remote call");
                         r.lpc.createSDPResponse();
-                    }, console.log); // we got another peer's offer
+                    }, function (data) { smsLog("relay", data) } ); // we got another peer's offer
             }
 
             var msg = JSON.parse(message);
@@ -49,11 +49,11 @@ visionApp.controller('viewCtrl', function($scope, $http, $q) {
 
             if (r === undefined) {
                 // fetch new remotes from the server
-                console.log("fetching channelrelays");
+                smsLog("relay", "fetching channelrelays");
                 $http.get ("/api/1.0/channel/" + $scope.channel_id + "/relay?" + $.param({s: $scope.local_id}))
                   .success(
                     function (data) {
-                        console.log("got channel relays", data);
+                        smsLog("relay", "got channel relays", data);
                         var j;
                         $scope.remotes = [];
                         for (j = 0; j < data.length; j++) {
@@ -71,7 +71,7 @@ visionApp.controller('viewCtrl', function($scope, $http, $q) {
                     }
                 )
                 .error(
-                    function() { console.log("error") }
+                    function() { smsLog("relay", "error getting channelrelays") }
                 );
             } else {
                 _setRtcConnection(r);
@@ -88,31 +88,31 @@ visionApp.controller('viewCtrl', function($scope, $http, $q) {
         if ( $scope.remotes._indexOfS(r) >= 0 ) {
             // we process the connect request
             if (state === "connected") {
-                console.log("p2p: we have a connection ");
+                smsLog("p2p", " we have a connection ");
                 $scope.addConnection(r);
                 $scope.$digest();
             
                 $scope.callWait(
-                function(r, state) { console.log("p2p: incoming call state updated", r, state);  $scope._p2pConnectionStateChange(r, state); }, 
-                function(data) { console.log("p2p: incoming call data callback", data); }
+                function(r, state) { smsLog("p2p", " incoming call state updated", r, state);  $scope._p2pConnectionStateChange(r, state); }, 
+                function(data) { smsLog("p2p", " incoming call data callback", data); }
             );
 }
         }
         // if r in peers, we expect a disconnect
         else if ( $scope.peers._indexOfS(r) >= 0 ) {
             if (state === "disconnected") {
-                console.log("p2p: remote disconnected ");
+                smsLog("p2p", " remote disconnected ");
                 $scope.removeConnection(r);
                 $scope.$digest();
             }
         }
         else {
-          console.log("p2p: got a ", state, " for ", r);
+          smsLog("p2p", " got a ", state, " for ", r);
         }
     }
 
     $scope.doDisconnect = function (r) {
-        console.log("trigger disconnection");
+        smsLog("relay", "user trigger disconnection");
          // TODO: trigger rtc disconnect
          r.lpc.close();
          $scope.removeConnection(r);
@@ -120,15 +120,15 @@ visionApp.controller('viewCtrl', function($scope, $http, $q) {
 
     $scope.doConnect = function (r) {
         $scope.broadcast_status = "STARTING CONNECTION";
-        console.log("trigger connection to ", r);
+        smsLog("relay", "user trigger connection to ", r);
         $scope._callRemote(r, 
             function(r, state) { 
                 $scope.broadcast_status = state;
-                console.log("p2p: outgoing call state updated", r, state);
+                smsLog("p2p", " outgoing call state updated", r, state);
                 $scope._p2pConnectionStateChange(r, state);
             },
             function(data) {
-                console.log("p2p: outgoing call data callback", data);
+                smsLog("p2p", " outgoing call data callback", data);
             });
 
     }
@@ -193,10 +193,10 @@ visionApp.controller('viewCtrl', function($scope, $http, $q) {
         $http.post("/api/1.0/channel/"+$scope.channel_id+"/relay?" + $.param({s: $scope.local_id})).success(
             function(retval) { 
             try {
-                console.log("channel relay list", retval);
+                smsLog("relay", "channel relay list", retval);
                 if (retval.error) {
                     $scope.alertAdd("danger", retval.error);
-                    console.log("error while receiving data", retval.error);
+                    smsLog("relay", "error while registering channelrelay", retval.error);
                 } else {
                     var i;
                     $scope.remotes = [];
@@ -209,7 +209,7 @@ visionApp.controller('viewCtrl', function($scope, $http, $q) {
                     }
                     // TODO: do a better algorithm of selecting connecting peer
                     var r = $scope.remotes[0];
-                    console.log("remotes: ", $scope.remotes );
+                    smsLog("remotes", " ", $scope.remotes );
                     if (r === undefined) throw "Cannot find alive peer";
                     $scope.doConnect(r);
                 } 
@@ -235,9 +235,9 @@ visionApp.controller('viewCtrl', function($scope, $http, $q) {
         if (op === "add") {
             var video = document.querySelector('video#video');
             $scope._stream = stream;
-            console.log("stateCB: got stream ", stream);
+            smsLog("stateCB", " got stream ", stream);
             url = window.URL.createObjectURL(stream);
-            console.log("stateCB: localstream URL ",  url);
+            smsLog("stateCB", " localstream URL ",  url);
             video.src = url;
             video.onloadedmetadata = function(e) {
                 $scope._hasVideo = true;
@@ -255,7 +255,7 @@ visionApp.controller('viewCtrl', function($scope, $http, $q) {
         if ($scope._hasVideo === true) {
           return;
         }
-        console.log("Get local video");
+        smsLog("relay", "getting local video");
         navigator.getMedia = ( navigator.getUserMedia ||
           navigator.webkitGetUserMedia ||
           navigator.mozGetUserMedia ||
@@ -276,7 +276,7 @@ visionApp.controller('viewCtrl', function($scope, $http, $q) {
         
            // errorCallback
            function(err) {
-            console.log("The following error occured: " + err);
+            smsLog("The following error occured", " " + err);
            }
         
           );
@@ -292,7 +292,7 @@ visionApp.controller('viewCtrl', function($scope, $http, $q) {
     $scope.channel_name = undefined;
     $scope.alertAdd = function(type, msg) {
         var lalert ={'type': type, 'msg': msg};
-        console.log(lalert);
+        smsLog("relay", "user facing alert", lalert);
         return $scope.all_alerts.push(lalert);
     }
     $scope.alertClose = function(idx) {
@@ -320,7 +320,7 @@ $(document).ready( function () {
 });
 
 window.onbeforeunload = function () {
-    console.log("almost dead");
+    smsLog("relay", "application closing");
     var scope = angular.element("div#main").scope();
     scope.stopStreaming();
     smsStopSystem();
