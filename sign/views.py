@@ -266,12 +266,12 @@ def log(request, *args, **kwargs):
         t = request.GET.get("t", None)
         if t is not None:
             pass
-            return HttpResponse(json.dumps([{"tag": x.tag, "log": x.log} for x in Client.objects.get(externid = t).clientlog_set.all()]),
+            return HttpResponse(json.dumps([{"tag": x.tag, "log": x.log, "updated":str(x.updated)} for x in Client.objects.get(externid = t).clientlog_set.order_by('id')]),
                  content_type = "application/json")
 
         t = request.GET.get("type", None)
         if t is not None:
-            return HttpResponse(json.dumps([{"externid": x.externid, "clientlog_count": x.clientlog_set.count()} for x in Client.objects.filter(status=0)]), content_type = "application/json")
-        return render(request, "clientlog.html", { 'clients': Client.objects.filter(status=0) })
+            return HttpResponse(json.dumps([{"externid": x.externid, "clientlog_count": x.clientlog_set.count(), "updated" : str(x.updated)} for x in Client.objects.filter(status=0).order_by('id')]), content_type = "application/json")
+        return render(request, "clientlog.html", { 'clients': Client.objects.filter(status=0).order_by('id') })
     else:
         return HttpResponse(json.dumps({PARAM_ERROR: "call not valid"}), content_type = "application/json")

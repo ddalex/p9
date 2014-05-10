@@ -65,7 +65,9 @@
    <a href="{% url "django.contrib.auth.views.logout" %}">Logout</a>
   </div>
   <div class="row">
-    <div ng-repeat="log in logset">{[log.tag]} {[log.log]}</div>      
+    <table class="table">
+    <tr ng-repeat="log in logset"><td>{[log.updated]} </td><td>{[log.tag]}</td><td>{[log.log]}</td></tr>
+    </table>
   </div>
 </div>
 {%endblock%}

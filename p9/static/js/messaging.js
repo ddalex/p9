@@ -34,9 +34,6 @@ function smsLog(tag, l) {
         clientregistered = 1;
     }
     var myRequest = new XMLHttpRequest();
-    myRequest.onreadystatechange = function () {
-        console.log("log call state: ", myRequest);
-    }
     myRequest.open("POST", HOMEURL+"/log?s="+encodeURIComponent(smsMyId), true);
     var logtext = ""; var i = 1;
     for (i = 1; i < arguments.length; i++) {
