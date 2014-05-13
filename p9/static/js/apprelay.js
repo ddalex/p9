@@ -92,10 +92,10 @@ visionApp.controller('viewCtrl', function($scope, $http, $q) {
                 $scope.addConnection(r);
                 $scope.$digest();
             
-                $scope.callWait(
-                function(r, state) { smsLog("p2p", " incoming call state updated", r, state);  $scope._p2pConnectionStateChange(r, state); }, 
-                function(data) { smsLog("p2p", " incoming call data callback", data); }
-            );
+//                $scope.callWait(
+//                function(r, state) { smsLog("p2p", " incoming call state updated", r, state);  $scope._p2pConnectionStateChange(r, state); }, 
+//                function(data) { smsLog("p2p", " incoming call data callback", data); }
+//            );
 }
         }
         // if r in peers, we expect a disconnect
@@ -119,7 +119,7 @@ visionApp.controller('viewCtrl', function($scope, $http, $q) {
     }
 
     $scope.doConnect = function (r) {
-        $scope.broadcast_status = "STARTING CONNECTION";
+        $scope.broadcast_status = "starting connection";
         smsLog("relay", "user trigger connection to ", r);
         $scope._callRemote(r, 
             function(r, state) { 
@@ -150,8 +150,9 @@ visionApp.controller('viewCtrl', function($scope, $http, $q) {
 
     $scope.crtconnection = undefined;
     $scope.addConnection = function (c) {
+        // we mark ourselves as read only
         $http.post("/api/1.0/channel/"+$scope.channel_id+"/relay?" + $.param({s: $scope.local_id}),
-            {'x': 0}).success( function(data) {
+            {'x': 2}).success( function(data) {
         var p = $scope.peers._indexOfS(c);
         if (p == -1)
             $scope.peers.push(c);

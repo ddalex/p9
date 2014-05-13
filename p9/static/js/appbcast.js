@@ -1,6 +1,6 @@
 // vim: set tabstop=4 expandtab ai:
 
-visionApp.controller('viewCtrl', function ($scope, $http, $q) {
+visionApp.controller('viewCtrl', function ($scope, $http, $q, $interval, $location) {
     // both arrays hold "r" objects
     $scope.peers = [];
     $scope.remotes = [];
@@ -119,6 +119,8 @@ visionApp.controller('viewCtrl', function ($scope, $http, $q) {
         var p = $scope.remotes._indexOfS(c);
         if (p > -1)
           $scope.remotes.splice(p, 1);
+
+        $scope.broadcast_usersno = $scope.peers.length;
     }
 
     $scope.updateRemoteClients = function(clients) {
@@ -237,7 +239,6 @@ visionApp.controller('viewCtrl', function ($scope, $http, $q) {
         )
     }
 
-    smsLog("bcast 2");
     $scope._bcastStart = function() {
         $scope.all_alerts = [];
         var promise = undefined;
@@ -260,6 +261,7 @@ visionApp.controller('viewCtrl', function ($scope, $http, $q) {
 
         // step 2. we have all that's needed
 	    promise.then(
+                // make the call to the server
                 function(data) {
                     if ($scope._stream === undefined) { $scope.streamCB(data.data, data.msg); }
                     // register the channel with the server
@@ -270,6 +272,7 @@ visionApp.controller('viewCtrl', function ($scope, $http, $q) {
                     smsLog("bcast", data);
                 }
         ).then( function (retval) {
+            // we got call result back
             smsLog("bcast", "channeladd", retval);
             if ('error' in retval.data) {
                 $scope.alertAdd("danger", retval.data.error);
@@ -288,6 +291,9 @@ visionApp.controller('viewCtrl', function ($scope, $http, $q) {
                 $scope.alertAdd("danger", "Registration failed");
                 return;
             }
+
+            // we set up the channel on the remote, update the UI
+            $scope.broadcast_url = $location.protocol() + "://" + $location.host() + ":" + $location.port + "/channelview/"+$scope.channel_id + "/";
 
             $scope.callWait(
                 function(r, state) { smsLog("bcast", "incoming call state updated", r, state);  $scope._p2pConnectionStateChange(r, state); }, 
@@ -343,8 +349,8 @@ $(document).ready( function () {
     var scope = angular.element("div#main").scope();
 
     scope.local_id  = smsMyId;
-    scope.getLocalMedia().then(function (data) {scope.streamCB(data.data, data.msg); }) ;
     smsStartSystem();
+    scope.getLocalMedia().then(function (data) {scope.streamCB(data.data, data.msg); }) ;
 
 });
 
