@@ -90,15 +90,15 @@
             </table>
               </td> <td>
             Viewers: <hr/>
-            {% for cr in c.channelrelay_set.all %} {% if cr.status == 0 %}
+            {% for cr in c.channelrelay_set.all|dictsort:"id" %} 
             <table class="table">
               <tr><td>ID</td><td>{{cr.client.id}}</td></tr>
               <tr><td>UserAgent</td><td>{{cr.client.useragent}}</td></tr>
               <tr><td>IP</td><td>{{cr.client.ip}}</td></tr>
-              <tr><td>Last Seen:</td><td>{{cr.client.updated}}</td></tr>
+              <tr><td>Last Seen:</td><td>{{cr.client.updated}} ( status: {{cr.client.status}} )</td></tr>
             </table></br>
             </td></tr>
-            {% endif %}{% endfor %}
+            {% endfor %}
           {% endfor %}
         </table>
       </div>
