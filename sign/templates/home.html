@@ -1,5 +1,16 @@
 {%extends "base.html"%}
 
+{% block "contextualmenu" %}
+        {% if  user.is_authenticated %}
+	  {% if user.is_superuser %}
+            <li><a href="{% url "sign.views.log" %}">AdminLog</a></li>
+	    <li><a href="{% url "sign.views.oview" %}">Oview</a></li>
+            <li><a href="/admin/">Admin</a></li>
+	  {% endif %}
+            <li><a href="{% url "django.contrib.auth.views.logout" %}">Logout</a></li>
+        {% endif %}
+{% endblock %}
+
 {%block "mainbody"%}
 <div class="container">
   <div class="row">

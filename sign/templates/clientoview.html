@@ -68,7 +68,7 @@
         );
     }
 
-    $scope.updateInterval = $interval( $scope.clientUpdate, 2000);
+//    $scope.updateInterval = $interval( $scope.clientUpdate, 2000);
   });
 
  
@@ -78,25 +78,29 @@
     
 
     <div class="row">
-        <div class="col-md-6">
-     <select size="5" ng-model="clientid" ng-change="logUpdate()">
-      <option ng-repeat="i in clientset" value={[i.externid]}>{[i.externid]} - {[i.clientlog_count]}</option>
-     </select>
-        </div>
-        <div class="col-md-6">
-          <table class="table">
-            <tr><td>ID</td><td>{[clientid]}</td></tr>
-            <tr><td>UserAgent</td><td>{[useragent]}</td></tr>
-            <tr><td>IP</td><td>{[ip]}</td></tr>
-            <tr><td>Last Seen:</td><td>{[updated]}</td></tr>
-          </table>
-        </div>
+      <div class="col-md-12">
+        <table class="table">
+          {% for c in channels %}
+          <tr> <td> Name: {{c.name}} <hr/>Owner:
+            <table class="table">
+              <tr><td>ID</td><td>{{c.master.id}}</td></tr>
+              <tr><td>UserAgent</td><td>{{c.master.useragent}}</td></tr>
+              <tr><td>IP</td><td>{{c.master.ip}}</td></tr>
+              <tr><td>Last Seen:</td><td>{{c.master.updated}}</td></tr>
+            </table>
+              </td> <td>
+            Viewers: <hr/>
+            {% for cr in c.channelrelay_set.all %} {% if cr.status == 0 %}
+            <table class="table">
+              <tr><td>ID</td><td>{{cr.client.id}}</td></tr>
+              <tr><td>UserAgent</td><td>{{cr.client.useragent}}</td></tr>
+              <tr><td>IP</td><td>{{cr.client.ip}}</td></tr>
+              <tr><td>Last Seen:</td><td>{{cr.client.updated}}</td></tr>
+            </table></br>
+            </td></tr>
+            {% endif %}{% endfor %}
+          {% endfor %}
+        </table>
+      </div>
     </div>
-  <!-- separator here -->
-  <div class="row">
-    <table class="table">
-      <tr ng-repeat="log in logset"><td>{[log.updated]} </td><td>{[log.tag]}</td><td>{[log.log]}</td></tr>
-    </table>
-  </div>
-</div>
 {%endblock%}

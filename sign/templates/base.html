@@ -8,6 +8,7 @@
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link href="{% static "css/bootstrap.min.css" %}" type="text/css" rel="stylesheet"/>
+<link href="{% static "css/custom.css" %}" type="text/css" rel="stylesheet"/>
 
 <script src="{% static "js/jquery-2.0.3.min.js" %}"></script>
 <script src="{% static "js/angular.min.js" %}"></script>
@@ -18,15 +19,13 @@
 <body>
 <div class="navbar-collapse collapse">
           <ul class="nav navbar-nav">
-          </ul>
-          <ul class="nav navbar-nav navbar-right">
+            <li><a href="/">Home</a></li>
             <li><a href="#about">About</a></li>
             <li><a href="#contact">Contact</a></li>
-            <li><a href="/log">AdminLog</a></li>
-            <li><a href="/admin">Admin</a></li>
-        {% if  user.is_authenticated %}
-            <li><a href="{% url "django.contrib.auth.views.logout" %}">Logout</a></li>
-        {% endif %}
+          </ul>
+          <ul class="nav navbar-nav navbar-right">
+            {% block "contextualmenu" %}
+            {% endblock %}
           </ul>
         </div>
 {% block "mainbody" %}

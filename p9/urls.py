@@ -16,8 +16,11 @@ urlpatterns = patterns('',
     url(r'^channelview/(?P<channelid>\d+)/', sign.views.channelview),
     url(r'^api/1.0/', include ('sign.api1urls')),
 
+
+    # own administration
     url("^accounts/login/", 'django.contrib.auth.views.login', { 'template_name': 'admin/login.html'}),
     url("^accounts/logout/", 'django.contrib.auth.views.logout' ),
+    url("^oview$", sign.views.oview),
     url('^log$', sign.views.log),
 
 
@@ -26,6 +29,8 @@ urlpatterns = patterns('',
 
     # Uncomment the next line to enable the admin:
     url(r'^admin/', include(admin.site.urls)),
-    #url(r'.*', never_cache(RedirectView.as_view(url="/static/index.html"))),
+
+    # redirect all 404
+    url(r'.*', never_cache(RedirectView.as_view(url = ""))),
     
 )

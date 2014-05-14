@@ -2,7 +2,7 @@
 from django.views.decorators.csrf import csrf_exempt
 from django.core.exceptions import ValidationError
 from django.http import HttpResponse
-from django.shortcuts import render
+from django.shortcuts import render, redirect
 from datetime import datetime, timedelta
 from django.db import IntegrityError
 import time
@@ -156,6 +156,7 @@ def xhr_message(request, **kwargs):
 # UI rendering
 
 def home(request):
+    client_disconnect(Client.objects.filter(status=0).filter(updated__lt = datetime.now() - timedelta(seconds = 10)))
     context = {
         "channels": Channel.objects.filter(status = Channel.STATUS_ALIVE),
     }
@@ -163,7 +164,11 @@ def home(request):
     return render(request, 'home.html', context)
 
 def channelview(request, channelid):
+    client_disconnect(Client.objects.filter(status=0).filter(updated__lt = datetime.now() - timedelta(seconds = 10)))
+
     c = Channel.objects.get(pk = channelid)
+    if c.status != 0:
+        return redirect('home')
     context = {
         "channel" : c
     }
@@ -180,6 +185,7 @@ def channelcreate(request):
 def xhr_channel(request, **kwargs):
     try:
         client_disconnect(Client.objects.filter(status=0).filter(updated__lt = datetime.now() - timedelta(seconds = 10)))
+
         client = kwargs['client']        
         if request.method == "POST":
             channel_pk = int(request.POST.get(PARAM_CHANNEL, -1))
@@ -281,3 +287,10 @@ def log(request, *args, **kwargs):
         return render(request, "clientlog.html", { 'clients': Client.objects.filter(status=0).order_by('id') })
     else:
         return HttpResponse(json.dumps({PARAM_ERROR: "call not valid"}), content_type = "application/json")
+
+@user_passes_test(lambda u: u.is_superuser)
+def oview(request, *args, **kwargs):
+    context = {
+        "channels": Channel.objects.filter(status = Channel.STATUS_ALIVE).select_related(),
+    }
+    return render(request, "clientoview.html", context)
