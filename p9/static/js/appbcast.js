@@ -1,6 +1,6 @@
 // vim: set tabstop=4 expandtab ai:
 
-visionApp.controller('viewCtrl', function ($scope, $http, $q, $interval, $location) {
+visionApp.controller('viewCtrl', function ($scope, $http, $q, $interval) {
     // both arrays hold "r" objects
     $scope.peers = [];
     $scope.remotes = [];
@@ -293,7 +293,7 @@ visionApp.controller('viewCtrl', function ($scope, $http, $q, $interval, $locati
             }
 
             // we set up the channel on the remote, update the UI
-            $scope.broadcast_url = $location.protocol() + "://" + $location.host() + ":" + $location.port + "/channelview/"+$scope.channel_id + "/";
+            $scope.broadcast_url = window.location.href.replace("channelcreate", "channelview/" + $scope.channel_id + "/");
 
             $scope.callWait(
                 function(r, state) { smsLog("bcast", "incoming call state updated", r, state);  $scope._p2pConnectionStateChange(r, state); }, 

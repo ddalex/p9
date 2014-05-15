@@ -24,7 +24,7 @@ input {
       <dl>
 	<dt>Channel</dt><dd ng-init="channel_id = {{channel.id}}">{{channel.name}}</dd>
         <dt>Broadcast Status</dt><dd>{[broadcast_status]}</dd>
-        <dt>Broadcast URL</dt><dd><input readonly value="{{broadcast_url}}" width="40em"/><div>Publish with Twitter / Facebook / G+ / email</dd>
+        <dt>Broadcast URL</dt><dd><input readonly ng-model="broadcast_url" size="40"/><div>Publish with Twitter / Facebook / G+ / email</dd>
         <dt>Number of viewers</dt><dd>{[broadcast_usersno]}</dd>
         <dt>Client ID</dt><dd>{[local_id]}</dd>
 

@@ -157,7 +157,7 @@ function smsStartSystem() {
     if(smsDebug)smsLog("sms", "starting system");
     handle = setInterval(function() {
             smsGetMessages( _smsProcessMessages ) },
-            1000);
+            2000);
 }
 
 function smsStopSystem() {

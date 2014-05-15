@@ -8,7 +8,7 @@ visionApp.controller('viewCtrl', function($scope, $http, $q) {
     // we need to build an 'r' object and call this with stateCB and data dataCB
     $scope._callRemote = function (r, stateCB, dataCB) {
         smsLog("main", " we call ", r.s);
-        $scope.broadcast_status = "CONNECTING";
+        $scope.broadcast_status = "connecting - may take a minute, please wait";
         r.lpc = rtcGetConnection( ROLE.CALLER, r.s, function (state) { stateCB(r, state); }, $scope._streamCB, dataCB);
     }
 
@@ -64,6 +64,7 @@ visionApp.controller('viewCtrl', function($scope, $http, $q) {
                                 $scope.remotes.push(r);
                             }
                           }
+                          $scope.broadcast_usersno = $scope.peers.length;
                         }
                         r = _remoteForSender();
                         if (r != undefined)
@@ -85,6 +86,7 @@ visionApp.controller('viewCtrl', function($scope, $http, $q) {
 
     $scope._p2pConnectionStateChange = function (r, state) {
         // if r in remotes, we expect a connect
+        $scope.broadcast_status = state;
         if ( $scope.remotes._indexOfS(r) >= 0 ) {
             // we process the connect request
             if (state === "connected") {
@@ -190,7 +192,8 @@ visionApp.controller('viewCtrl', function($scope, $http, $q) {
 
 
     $scope.startStreaming = function() {
-        $scope.broadcast_status = "REGISTERING";
+        $scope.broadcast_status = "registering";
+        $scope.broadcast_usersno = 0;
         $http.post("/api/1.0/channel/"+$scope.channel_id+"/relay?" + $.param({s: $scope.local_id})).success(
             function(retval) { 
             try {
@@ -208,6 +211,7 @@ visionApp.controller('viewCtrl', function($scope, $http, $q) {
                             $scope.remotes.push(c);
                         }
                     }
+                    $scope.broadcast_usersno = $scope.remotes.length;
                     // TODO: do a better algorithm of selecting connecting peer
                     var r = $scope.remotes[0];
                     smsLog("remotes", " ", $scope.remotes );
@@ -301,7 +305,7 @@ visionApp.controller('viewCtrl', function($scope, $http, $q) {
     }
 
     
-    $scope.broadcast_status = "WAITING";
+    $scope.broadcast_status = "waiting";
 
 });   // end of controller scope
 
@@ -315,6 +319,7 @@ $(document).ready( function () {
     var scope = angular.element("div#main").scope();
 
     scope.local_id  = smsMyId;
+    scope.broadcast_url = window.location.href;
     smsStartSystem();
     scope.startStreaming();
 
