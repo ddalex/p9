@@ -42,7 +42,6 @@ function rtcGetConnection(role, remoteId, onStateCB, onStreamCB, onDRecvCB) {
 
 
     var lPC = undefined;
-    var sendChannel = undefined;
 
     // called on either createOffer or createAnswer
     var iceServers = {
@@ -75,17 +74,17 @@ function rtcGetConnection(role, remoteId, onStateCB, onStreamCB, onDRecvCB) {
     else throw "Error finding RTCIceCandidate";
 
 
-    lPC = new _RTCPeerConnection(iceServers, {optional: [{RtpDataChannels: true}]});
+    lPC = new _RTCPeerConnection(iceServers, {optional: [{RtpDataChannels: false}]});
 
     lPC.role = role;
     lPC.remoteId = remoteId;
 
-    lPC.sendChannel = lPC.createDataChannel("data1", {reliable: false});
-    lPC.sendChannel.onopen = function(evt) {
-        if(rtcDEBUG)smsLog("rtc", " data Channel: 1" , evt);
-    }
+    // lPC.sendChannel = lPC.createDataChannel("data1", {reliable: false});
+    // lPC.sendChannel.onopen = function(evt) {
+       // if(rtcDEBUG)smsLog("rtc", " data Channel: 1" , evt);
+    // }
 
-    lPC.sendChannel.onmessage = onDRecvCB;
+    // lPC.sendChannel.onmessage = onDRecvCB;
 
     lPC.onicecandidate = function(evt) {
         if (evt.candidate != null) {
@@ -128,8 +127,38 @@ function rtcGetConnection(role, remoteId, onStateCB, onStreamCB, onDRecvCB) {
         }
     }
 
+    function alterSDP(sdp) {
+        var t = sdp.sdp.split("\n");
+        var i = 0;
+        var mode = 0;
+        var start = 0;
+        var stop = 0;
+        console.log("original sdp", [ sdp ]);
+        for (i = 0; i < t.length; i++ ) {
+            switch(mode) {
+                case 0: // not encountered application
+                    if (t[i].indexOf("m=application") == 0) {
+                        mode = 1;   // mark removal start
+                        start = i;
+                    }
+                break;
+                case 1:
+                    if (t[i].indexOf("m=") == 0) {
+                        stop = i;
+                        mode = 2;   // mark removing
+                        break;
+                    }
+            }
+        }
+        t.splice(start, stop - start);
+        sdp.sdp = t.join("\n");
+        console.log("altered sdp", [ sdp ]);
+        return sdp;
+    }
+
     function localDescriptionCallback(sdp) {
-        if(rtcDEBUG)smsLog("rtc", " we got local description", sdp);
+        sdp = alterSDP(sdp);
+        if(rtcDEBUG)smsLog("rtc", " acquired local description", sdp);
         lPC.setLocalDescription(sdp,
             function () {
                 if(rtcDEBUG)smsLog("rtc", " sending local description ", sdp);
