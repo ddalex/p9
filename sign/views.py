@@ -11,6 +11,11 @@ import json
 from sign.models import Message, Client, ClientLog
 from sign.models import Channel, ChannelRelay
 
+from django.contrib.auth.models import User
+from django.contrib.auth import authenticate, login
+from django.contrib.auth.decorators import login_required
+
+
 # parameter names definition
 PARAM_ERROR = 'error'
 PARAM_CHANNEL = 'channel'
@@ -48,6 +53,24 @@ def must_have_aliveclient(function):
 
     return wrapper
 
+def must_have_user(function):
+    def wrapper(request, *args, **kwargs):
+        try:
+            if request.user.is_anonymous():
+                user = authenticate(username = '__anon', password = 'secret')
+                if user is None:
+                    user = User.objects.create_user(username = '__anon', password = 'secret')
+                    user = authenticate(username = '__anon', password = 'secret')
+                user.is_active = False
+                user.save()
+                login(request, user)
+            return function(request, *args, **kwargs)
+        except Exception as e:
+            import traceback
+            response = HttpResponse("error on user:" + str(e) +"\n" + traceback.format_exc(), content_type = "text/plain")
+            response.status_code = 500
+            return response
+    return wrapper
 
 def client_disconnect(clientlist):
     for c in clientlist:
@@ -62,6 +85,7 @@ def client_disconnect(clientlist):
 
 @csrf_exempt
 @must_have_externid
+@login_required
 def xhr_client(request):
     '''
     Clients API:
@@ -92,6 +116,7 @@ def xhr_client(request):
                     ip  = get_client_ip(request),
                     useragent = request.META.get('HTTP_USER_AGENT')
                 )
+
             if not created:
                 if crtclient.status == Client.STATUS_ALIVE:
                     raise CallError("Client already registered")
@@ -99,6 +124,8 @@ def xhr_client(request):
             crtclient.status = request.POST.get('x', 0)
             crtclient.updated = datetime.now()
             crtclient.save()
+            if crtclient.status == 1:
+                client_disconnect([crtclient])
 
         # list currently alive clients
         clients = Client.objects.filter(status = Client.STATUS_ALIVE).order_by("-updated")
@@ -110,6 +137,7 @@ def xhr_client(request):
 @csrf_exempt
 @must_have_externid
 @must_have_aliveclient
+@login_required
 def xhr_message(request, **kwargs):
     '''
     Messages API:
@@ -154,7 +182,7 @@ def xhr_message(request, **kwargs):
 
 
 # UI rendering
-
+@must_have_user
 def home(request):
     client_disconnect(Client.objects.filter(status=0).filter(updated__lt = datetime.now() - timedelta(seconds = 10)))
     context = {
@@ -163,6 +191,7 @@ def home(request):
 
     return render(request, 'home.html', context)
 
+@must_have_user
 def channelview(request, channelid):
     client_disconnect(Client.objects.filter(status=0).filter(updated__lt = datetime.now() - timedelta(seconds = 10)))
 
@@ -174,6 +203,8 @@ def channelview(request, channelid):
     }
     return render(request, 'channelview.html', context)
 
+@must_have_user
+@login_required
 def channelcreate(request):
     return render(request, 'channelcreate.html')
 
@@ -182,6 +213,7 @@ def channelcreate(request):
 @csrf_exempt    # TODO: remove after ALPHA stage, implement proper CSRF protection
 @must_have_externid
 @must_have_aliveclient
+@login_required
 def xhr_channel(request, **kwargs):
     try:
         client_disconnect(Client.objects.filter(status=0).filter(updated__lt = datetime.now() - timedelta(seconds = 10)))
@@ -192,11 +224,30 @@ def xhr_channel(request, **kwargs):
             channel_name = request.POST.get(PARAM_CHANNELNAME, '')
             status = int(request.POST.get(PARAM_STATUS, -1))
             if (len(channel_name) > 0 and status == Channel.STATUS_ALIVE):
-                # create
-                channel = Channel.objects.create(master = client, 
-                     name = channel_name,
-                     status = status,
-                )
+                # create - allow name reuse if the users match
+
+                try:
+                    channel = Channel.objects.get(
+                         name = channel_name
+                    )
+                    if channel.owner and channel.owner.id != request.user.id:
+                        raise CallError("You do not own this channel!")
+
+                except Channel.DoesNotExist:
+                    channel = Channel.objects.create(
+                        master = client,
+                        name = channel_name
+                    )
+
+                if (channel.status == Channel.STATUS_ALIVE):
+                    raise CallError("Channel already exists!")
+
+                channel.master = client
+
+                channel.owner = User.objects.get(username = request.user.username)
+                channel.status = Channel.STATUS_ALIVE;
+                channel.save()
+
             elif (channel_pk > -1 and status == Channel.STATUS_DEAD):
                 # delete
                 channel = Channel.objects.get( pk = channel_pk, master = client, status = Channel.STATUS_ALIVE )
@@ -213,6 +264,7 @@ def xhr_channel(request, **kwargs):
 @csrf_exempt    # TODO: remove after ALPHA stage, implement proper CSRF protection
 @must_have_externid
 @must_have_aliveclient
+@login_required
 def xhr_channelrelay(request, *args, **kwargs):
     try:
         client_disconnect(Client.objects.filter(status=0).filter(updated__lt = datetime.now() - timedelta(seconds = 10)))
@@ -246,6 +298,7 @@ def xhr_channelrelay(request, *args, **kwargs):
 @csrf_exempt
 @must_have_externid
 @must_have_aliveclient
+@login_required
 def xhr_logpost(request, *args, **kwargs):
     if request.method == "POST":
         try:

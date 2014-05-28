@@ -2,6 +2,8 @@ from django.db import models
 
 # Create your models here.
 
+from django.contrib.auth.models import User
+
 class Client(models.Model):
     STATUS_ALIVE = 0
     STATUS_DEAD = 1
@@ -37,9 +39,10 @@ class Channel(models.Model):
         (STATUS_DEAD,  "dead"),
     )
     name    = models.CharField(max_length=64, unique = True)
+    owner   = models.ForeignKey(User, null = True)
     master  = models.ForeignKey(Client)
     created = models.DateTimeField(null=True)
-    status  = models.IntegerField(choices = CHANNEL_STATUS, default = STATUS_ALIVE)
+    status  = models.IntegerField(choices = CHANNEL_STATUS, default = STATUS_DEAD)
 
 class ChannelRelay(models.Model):
     STATUS_ALIVE = 0

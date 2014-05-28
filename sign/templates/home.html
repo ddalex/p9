@@ -7,7 +7,13 @@
 	    <li><a href="{% url "sign.views.oview" %}">Oview</a></li>
             <li><a href="/admin/">Admin</a></li>
 	  {% endif %}
+          {% if user.is_active %}
+            <li>Welcome {{user.username}}<a/>.</li>
             <li><a href="{% url "django.contrib.auth.views.logout" %}">Logout</a></li>
+          {% else %}
+            <li><a href="{% url "django.contrib.auth.views.login" %}">Register</a></li>
+            <li><a href="{% url "django.contrib.auth.views.login" %}">Login</a></li>
+          {% endif %}
         {% endif %}
 {% endblock %}
 

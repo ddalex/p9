@@ -161,8 +161,8 @@ function smsStartSystem() {
 }
 
 function smsStopSystem() {
+    _smsUpdateClient(1);        // mark dead client
     clearInterval(handle);
     handle = undefined;
-    _smsUpdateClient(1);        // mark dead client
 }
 
