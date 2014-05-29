@@ -321,7 +321,7 @@ visionApp.controller('viewCtrl', function ($scope, $http, $q, $interval) {
              // constraints
              {
                  video: true,
-                 audio: false,
+                 audio: true,
              },
 
              // successCallback

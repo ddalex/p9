@@ -3,21 +3,12 @@
 {% load staticfiles %}
 
 {%block "mainbody"%}
-<style>
-div.bordervideo {
-  margin: 1px;
-  border: 1px solid red;
-}
-input {
-  visibility: none
-}
-</style>
 <script src="{% static "js/messaging.js" %}"></script>
 <script src="{% static "js/rtc.js" %}"></script>
 <script src="{% static "js/appcommon.js" %}"></script>
 <script src="{% static "js/apprelay.js" %}"></script>
 <div id="main" role="main" ng-app="vision" ng-controller="viewCtrl" class="container">
-    <div class="bordervideo"><video id="video"></video></div>
+    <div class="row text-center"><video id="video"></video></div>
     <alert ng-repeat="alert in all_alerts" type="alert.type" close="alertClose($index)">{[alert.msg]}</alert>
     <hr/>
     <div>

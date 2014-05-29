@@ -10,6 +10,8 @@ visionApp.controller('viewCtrl', function($scope, $http, $q) {
         smsLog("main", " we call ", r.s);
         $scope.broadcast_status = "connecting - may take a minute, please wait";
         r.lpc = rtcGetConnection( ROLE.CALLER, r.s, function (state) { stateCB(r, state); }, $scope._streamCB, dataCB);
+        // manually trigger the connection
+        setTimeout(r.lpc.onnegotiationneeded, 100);
     }
 
     // waiting generates it's own r when it receives a call
@@ -111,6 +113,7 @@ visionApp.controller('viewCtrl', function($scope, $http, $q) {
         else {
           smsLog("p2p", " got a ", state, " for ", r);
         }
+        $scope.$apply();
     }
 
     $scope.doDisconnect = function (r) {
@@ -125,9 +128,10 @@ visionApp.controller('viewCtrl', function($scope, $http, $q) {
         smsLog("relay", "user trigger connection to ", r);
         $scope._callRemote(r, 
             function(r, state) { 
-                $scope.broadcast_status = state;
                 smsLog("p2p", " outgoing call state updated", r, state);
                 $scope._p2pConnectionStateChange(r, state);
+                $scope.broadcast_status = state;
+                $scope.$apply();
             },
             function(data) {
                 smsLog("p2p", " outgoing call data callback", data);
