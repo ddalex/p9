@@ -40,15 +40,20 @@ function rtcGetConnection(role, remoteId, onStateCB, onStreamCB, onDRecvCB) {
         throw "rtc: no onDRecvCB handler";
     }
 
-
     var lPC = undefined;
 
     // called on either createOffer or createAnswer
-    var iceServers = {
+    var config = {
         iceServers: [
                     { url: 'stun:stun.l.google.com:19302' },
+                    { url:"turn:192.158.30.23:3478?transport:udp", credential:"1401479939:78637771", username:"1401479939:78637771"},
+                    { url:"turn:192.158.30.23:3478?transport:tcp", credential:"1401479939:78637771", username:"1401479939:78637771"},
+                    { url:"turn:192.158.30.23:3479?transport:udp", credential:"1401479939:78637771", username:"1401479939:78637771"},
+                    { url:"turn:192.158.30.23:3479?transport:tcp", credential:"1401479939:78637771", username:"1401479939:78637771"}
         ]
     };
+
+
 
     var _RTCPeerConnection = undefined;
     if (window.RTCPeerConnection != undefined)
@@ -74,7 +79,7 @@ function rtcGetConnection(role, remoteId, onStateCB, onStreamCB, onDRecvCB) {
     else throw "Error finding RTCIceCandidate";
 
 
-    lPC = new _RTCPeerConnection(iceServers, {optional: [{RtpDataChannels: false}]});
+    lPC = new _RTCPeerConnection(config, {optional: [{RtpDataChannels: false}]});
 
     lPC.role = role;
     lPC.remoteId = remoteId;
