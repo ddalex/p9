@@ -46,7 +46,7 @@ function rtcGetConnection(role, remoteId, onStateCB, onStreamCB, onDRecvCB) {
     var config = {
         iceServers: [
 //                    { url: 'stun:stun.l.google.com:19302' },
-                    { url:"turn:trusign.ro:3479?transport:tcp", credential:"1234", username:"test"}
+                    { url:"turn:numb.viagenie.ca:3478?transport:udp", credential:"ddalex02", username:"ddalex+viagenie@gmail.com"}
         ]
     };
 
