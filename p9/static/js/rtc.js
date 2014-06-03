@@ -46,7 +46,6 @@ function rtcGetConnection(role, remoteId, onStateCB, onStreamCB, onDRecvCB) {
     var config = {
         iceServers: [
                     { url: 'stun:stun.l.google.com:19302' },
-                    { url:"turn:54.220.164.173:3478", credential:"1234", username:"test" }
         ]
     };
 
@@ -109,7 +108,7 @@ function rtcGetConnection(role, remoteId, onStateCB, onStreamCB, onDRecvCB) {
 
     lPC.oniceconnectionstatechange = function(evt) {
         if(rtcDEBUG)smsLog("rtc", "Ice connection state: ", lPC.iceConnectionState);
-        if (lPC.iceConnectionState === "disconnected") {
+        if (lPC.iceConnectionState === "disconnected" || lPC.iceConnectionState === "failed") {
             smsLog("rtc", "Close callbacks");
             if (lPC.candidateCallback != undefined) {
                 smsUnregisterCallback("candidate", this.candidateCallback);
@@ -119,6 +118,7 @@ function rtcGetConnection(role, remoteId, onStateCB, onStreamCB, onDRecvCB) {
                 smsUnregisterCallback("sdp", lPC.sdpCallback);
                 lPC.sdpCallback = undefined;
             }
+            lPC.close();
         }
         if (onStateCB != undefined) onStateCB(this.iceConnectionState);
     }

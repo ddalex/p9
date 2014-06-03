@@ -89,7 +89,7 @@ visionApp.controller('viewCtrl', function ($scope, $http, $q, $interval) {
         }
         // if r in peers, we expect a disconnect
         else if ( $scope.peers._indexOfS(r) >= 0 ) {
-            if (state === "disconnected") {
+            if (state === "disconnected" || state === "failed") {
                 smsLog("bcast", "p2p: remote disconnected ");
                 $scope.removeConnection(r);
                 $scope.$digest();
@@ -103,6 +103,7 @@ visionApp.controller('viewCtrl', function ($scope, $http, $q, $interval) {
     $scope.removeConnection = function (c) {
         var p = $scope.peers._indexOfS(c);
         if (p > -1) {
+            $scope.peers[p].lpc.close();
             $scope.peers.splice(p, 1);
         }
 
@@ -230,6 +231,10 @@ visionApp.controller('viewCtrl', function ($scope, $http, $q, $interval) {
     }
 
     $scope.bcastStop = function () {
+        var i;
+        for (i = 0; i < $scope.peers.length; i++) {
+            $scope.removeConnection($scope.peers[0]);
+        }
         $http.post("/api/1.0/channel?" + $.param({s : $scope.local_id}), {'channel' : $scope.channel_id, 's': 1})
             .success( function (data) {
                 smsLog("bcast", "channeldel", data);
