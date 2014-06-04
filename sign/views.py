@@ -222,6 +222,7 @@ def xhr_channel(request, **kwargs):
         if request.method == "POST":
             channel_pk = int(request.POST.get(PARAM_CHANNEL, -1))
             channel_name = request.POST.get(PARAM_CHANNELNAME, '')
+            channel_desc = request.POST.get('description', '')
             status = int(request.POST.get(PARAM_STATUS, -1))
             if (len(channel_name) > 0 and status == Channel.STATUS_ALIVE):
                 # create - allow name reuse if the users match
@@ -243,9 +244,10 @@ def xhr_channel(request, **kwargs):
                     raise CallError("Channel already exists!")
 
                 channel.master = client
-
+                channel.description = channel_desc
                 channel.owner = User.objects.get(username = request.user.username)
                 channel.status = Channel.STATUS_ALIVE;
+                channel.created = datetime.now()
                 channel.save()
 
             elif (channel_pk > -1 and status == Channel.STATUS_DEAD):

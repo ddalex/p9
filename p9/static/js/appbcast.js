@@ -270,7 +270,7 @@ visionApp.controller('viewCtrl', function ($scope, $http, $q, $interval) {
                 function(data) {
                     if ($scope._stream === undefined) { $scope.streamCB(data.data, data.msg); }
                     // register the channel with the server
-                    return $http.post("/api/1.0/channel?" + $.param({s : $scope.local_id}), {'name' : $scope.channel_name, 'x': 0});
+                    return $http.post("/api/1.0/channel?" + $.param({s : $scope.local_id}), {'name' : $scope.channel_name, 'description': $scope.channel_description, 'x': 0});
                 },
                 function(data) {
                     $scope.alertAdd("danger", "We do not have a local video.");
@@ -336,7 +336,8 @@ visionApp.controller('viewCtrl', function ($scope, $http, $q, $interval) {
 
              // errorCallback
              function(err) {
-                smsLog("bcast", "The following error occured: " + err);
+                smsLog("bcast", "The following error occured: ", err);
+                alert("Cannot get local media, check browser settings.\nError type: " + err.name);
                 deffered.reject({msg:'err', data: err});
              }
 

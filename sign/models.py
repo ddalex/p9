@@ -39,6 +39,7 @@ class Channel(models.Model):
         (STATUS_DEAD,  "dead"),
     )
     name    = models.CharField(max_length=64, unique = True)
+    description = models.TextField(null = True)
     owner   = models.ForeignKey(User, null = True)
     master  = models.ForeignKey(Client)
     created = models.DateTimeField(null=True)

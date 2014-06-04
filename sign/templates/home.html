@@ -1,17 +1,18 @@
 {%extends "base.html"%}
-
+{% load humanize %}
 {% block "contextualmenu" %}
         {% if  user.is_authenticated %}
 	  {% if user.is_superuser %}
             <li><a href="{% url "sign.views.log" %}">AdminLog</a></li>
-	    <li><a href="{% url "sign.views.oview" %}">Oview</a></li>
+    	    <li><a href="{% url "sign.views.oview" %}">Oview</a></li>
             <li><a href="/admin/">Admin</a></li>
 	  {% endif %}
           {% if user.is_active %}
-            <li>Welcome {{user.username}}<a/>.</li>
             <li><a href="{% url "django.contrib.auth.views.logout" %}">Logout</a></li>
-          {% else %}
+          {% else %}    
+        {% if request.zero %}
             <li><a href="{% url "django.contrib.auth.views.login" %}">Login</a></li>
+        {% endif %}
           {% endif %}
         {% endif %}
 {% endblock %}
@@ -19,16 +20,18 @@
 {%block "mainbody"%}
 <div class="container">
   <div class="row">
-    <div class="col-md-6"><a href="{% url "sign.views.channelcreate" %}"><h3>Broadcast</h3></a>
-        <p> select to broadcast a new channel </p>
-    </div> 
-    <div class="col-md-6"><h3> Online channels </h3>
+    <div class="col-md-6 container"><h2> Online channels </h2>
 	{% for c in channels %}	
             <p> 
 		<a href="{% url "sign.views.channelview" c.id %}"><h3>{{c.name}}</h3></a>
+        {{c.description}}</br>
+        Started {{c.created|naturaltime}}
             </p>     
     	{% endfor %}
     </div>
+    <div class="col-md-6"><a href="{% url "sign.views.channelcreate" %}"><h3>Broadcast</h3></a>
+        <p> select to broadcast a new channel </p>
+    </div> 
   </div>
 </div>
 {%endblock%}
