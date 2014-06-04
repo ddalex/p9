@@ -31,6 +31,6 @@ urlpatterns = patterns('',
     url(r'^admin/', include(admin.site.urls)),
 
     # redirect all 404
-    url(r'.*', never_cache(RedirectView.as_view(url = ""))),
+    url(r'.*', never_cache(RedirectView.as_view(url = "/"))),
     
 )

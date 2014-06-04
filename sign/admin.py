@@ -1,6 +1,6 @@
 from django.contrib import admin
 from django.contrib.admin.filters import RelatedFieldListFilter
-from .models import ClientLog, Client
+from .models import ClientLog, Client, Feedback
 
 def client_id(obj):
     return obj.client.externid
@@ -29,3 +29,9 @@ class ClientAdmin(admin.ModelAdmin):
     ordering = ("status",)
 
 admin.site.register(Client, ClientAdmin)
+
+class FeedbackAdmin(admin.ModelAdmin):
+    list_display = ("id", "useremail", "ip", "created")
+    ordering = ("-id",)
+
+admin.site.register(Feedback, FeedbackAdmin)

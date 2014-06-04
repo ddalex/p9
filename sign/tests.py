@@ -11,7 +11,7 @@ class ClientAPITest(TestCase):
         c = Client()
         response = c.post("/api/1.0/client?s=" + self.clientId)
 
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, 200, response)
         self.assertEqual(response['Content-Type'], "application/json")
 
         data = json.loads(response.content)
@@ -27,7 +27,7 @@ class ClientAPITest(TestCase):
         c = Client()
         response = c.post("/api/1.0/client?s=" + self.clientId, { "x" : 1 })
 
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, 200, response)
         self.assertEqual(response['Content-Type'], "application/json")
 
         data = json.loads(response.content)
@@ -49,19 +49,19 @@ class MessagingAPITest(TestCase):
         c = Client()
         response = c.post("/api/1.0/client?s=" + self.clientId)
 
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, 200, response)
         self.assertEqual(response['Content-Type'], "application/json")
 
         c = Client()
         response = c.post("/api/1.0/client?s=" + self.clientId2)
 
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, 200, response)
         self.assertEqual(response['Content-Type'], "application/json")
 
         c = Client()
         response = c.post("/api/1.0/client?s=" + self.clientId3)
 
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, 200, response)
         self.assertEqual(response['Content-Type'], "application/json")
 
 
@@ -73,19 +73,19 @@ class MessagingAPITest(TestCase):
     def test_call_with_client(self):
         c = Client()
         response = c.get("/api/1.0/message?s=" + self.clientId)
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, 200, response)
         self.assertEqual(response['Content-Type'], "application/json")
 
     def test_send_message_from_client1_to_client2(self):
         c = Client()
         response = c.post("/api/1.0/message?s=" + self.clientId, {'r':self.clientId2, 't': 't1', 'd': 'data1'})
 
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, 200, response)
         self.assertEqual(response['Content-Type'], "application/json")
 
         # we should find the message in the client2 queue
         response = c.get("/api/1.0/message?s=" + self.clientId2)
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, 200, response)
         self.assertEqual(response['Content-Type'], "application/json", "fail: " + response.content)
 
         data = json.loads(response.content)
@@ -100,7 +100,7 @@ class MessagingAPITest(TestCase):
 
         # we should NOT find the message in the client3 queue
         response = c.get("/api/1.0/message?s=" + self.clientId3)
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, 200, response)
         self.assertEqual(response['Content-Type'], "application/json")
 
         data = json.loads(response.content)
@@ -122,14 +122,14 @@ class ChannelAPITest(TestCase):
         c = Client()
         response = c.post("/api/1.0/client?s=" + self.clientId)
 
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, 200, response)
         self.assertEqual(response['Content-Type'], "application/json")
 
     def test_channel_create(self):
         c = Client()
         response = c.post("/api/1.0/channel?s="+self.clientId, {'name': 'testchannel', 'x': 0})
 
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, 200, response)
         self.assertEqual(response['Content-Type'], "application/json")
         data = json.loads(response.content)
         self.assertFalse(u'error' in data, data)
@@ -153,7 +153,7 @@ class ChannelAPITest(TestCase):
         c = Client()
         response = c.post("/api/1.0/channel?s="+self.clientId, {'channel': channelid, 'x': 1})
 
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, 200, response)
         self.assertEqual(response['Content-Type'], "application/json")
         data = json.loads(response.content)
 
@@ -167,7 +167,7 @@ class ChannelAPITest(TestCase):
         c = Client()
         response = c.post("/api/1.0/channel?s="+self.clientId, {'name': 'testchannel', 'x' : 0})
 
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, 200, response)
         self.assertEqual(response['Content-Type'], "application/json")
 
         channelid = -1
@@ -182,7 +182,7 @@ class ChannelAPITest(TestCase):
 
         c = Client()
         response = c.get("/api/1.0/channel?s="+self.clientId)
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, 200, response)
         self.assertEqual(response['Content-Type'], "application/json")
         data = json.loads(response.content)
         self.assertFalse(u'error' in data, data)
@@ -201,7 +201,7 @@ class ChannelRelayAPITest(TestCase):
         c = Client()
         response = c.post("/api/1.0/client?s=" + self.clientId)
 
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, 200, response)
         self.assertEqual(response['Content-Type'], "application/json")
         self._addChannel()
 
@@ -209,7 +209,7 @@ class ChannelRelayAPITest(TestCase):
         c = Client()
         response = c.post("/api/1.0/channel?s="+self.clientId, {'name': 'testchannel', 'x': 0})
 
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, 200, response)
         self.assertEqual(response['Content-Type'], "application/json")
         data = json.loads(response.content)
         self.assertFalse(u'error' in data, data)
@@ -226,7 +226,7 @@ class ChannelRelayAPITest(TestCase):
         c = Client()
         response = c.post("/api/1.0/channel/"+self.channelid+"/relay?s="+self.clientId)
 
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, 200, response)
         self.assertEqual(response['Content-Type'], "application/json")
         data = json.loads(response.content)
         self.assertFalse(u'error' in data, data)
@@ -241,13 +241,13 @@ class ChannelRelayAPITest(TestCase):
     def test_channelrelay_delete(self):
         c = Client()
         response = c.post("/api/1.0/channel/"+self.channelid+"/relay?s="+self.clientId)
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, 200, response)
         self.assertEqual(response['Content-Type'], "application/json")
         self.assertEqual(ChannelRelay.objects.filter(channel = Channel.objects.get(pk = self.channelid), client = SignClient.objects.get(externid = self.clientId)).count(), 1)
 
         response = c.post("/api/1.0/channel/"+self.channelid+"/relay?s="+self.clientId, {'x': 1})
 
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, 200, response)
         self.assertEqual(response['Content-Type'], "application/json")
         data = json.loads(response.content)
         self.assertFalse(u'error' in data, data)
@@ -263,12 +263,12 @@ class ChannelRelayAPITest(TestCase):
         c = Client()
 
         response = c.get("/api/1.0/channel/"+self.channelid+"/relay?s="+self.clientId)
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, 200, response)
         self.assertEqual(response['Content-Type'], "application/json")
 
 
         response = c.get("/api/1.0/channel/"+self.channelid+"/relay?s="+self.clientId)
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, 200, response)
         self.assertEqual(response['Content-Type'], "application/json")
         data = json.loads(response.content)
         self.assertFalse(u'error' in data, data)
@@ -279,3 +279,9 @@ class ChannelRelayAPITest(TestCase):
         self.assertTrue(found, (self.clientId, data))
 
 
+class   FeedbackTest(TestCase):
+    def test_sendfeedback():
+        c = Client()
+        response = c.post("/api/1.0/feedback", {"e": "email1", "t":"text1"})
+        import sign.models.Feedback
+        self.assertTrue(Feedback.objects.filter(useremail="email1", usertext="text1").count() == 1, Feedback.objects.all())

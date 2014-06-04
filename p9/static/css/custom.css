@@ -11,3 +11,20 @@
   clear:both;
   padding-top:20px;
 } 
+
+#modal-body {
+    font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+}
+
+input[type=text]#useremail {
+    border-radius: 3px;
+    padding: 12px 0px 2px 12px;
+    margin: 0 auto 18px auto;
+    font-size: 1.2em;
+}
+
+textarea {
+    width: 30em;
+    height: 8em;
+
+}

@@ -64,3 +64,10 @@ class ClientLog(models.Model):
     tag     = models.CharField(max_length=32)
     log     = models.TextField()
     updated = models.DateTimeField(auto_now_add=True)
+
+class Feedback(models.Model):
+    useremail = models.CharField(max_length=128)
+    usertext  = models.TextField()
+    ip        = models.GenericIPAddressField(blank = True)
+    useragent = models.CharField(max_length=256, blank = True)
+    created   = models.DateTimeField(auto_now_add = True) 

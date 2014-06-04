@@ -9,7 +9,7 @@ import time
 import json
 
 from sign.models import Message, Client, ClientLog
-from sign.models import Channel, ChannelRelay
+from sign.models import Channel, ChannelRelay, Feedback
 
 from django.contrib.auth.models import User
 from django.contrib.auth import authenticate, login
@@ -82,6 +82,13 @@ def client_disconnect(clientlist):
     # TODO: delete all channel-related information    
 
 # messaging system
+def __get_client_ip(request):
+    x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
+    if x_forwarded_for:
+        ip = x_forwarded_for.split(',')[0]
+    else:
+        ip = request.META.get('REMOTE_ADDR')
+    return ip
 
 @csrf_exempt
 @must_have_externid
@@ -102,18 +109,11 @@ def xhr_client(request):
         if request.method == "POST":
             client_disconnect(Client.objects.filter(status=0).filter(updated__lt = datetime.now() - timedelta(seconds = 10)))
 
-            def get_client_ip(request):
-                x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
-                if x_forwarded_for:
-                    ip = x_forwarded_for.split(',')[0]
-                else:
-                    ip = request.META.get('REMOTE_ADDR')
-                return ip
 
             # update client
             crtclient, created = Client.objects.get_or_create(
                     externid=request.GET['s'],
-                    ip  = get_client_ip(request),
+                    ip  = __get_client_ip(request),
                     useragent = request.META.get('HTTP_USER_AGENT')
                 )
 
@@ -314,6 +314,18 @@ def xhr_logpost(request, *args, **kwargs):
 
         except Exception as e:
             return HttpResponse(json.dumps({PARAM_ERROR: str(e)}), content_type = "application/json")
+    return HttpResponse(json.dumps({PARAM_ERROR: "call not valid"}), content_type = "application/json")
+
+@csrf_exempt
+def xhr_feedback(request, *args, **kwargs):
+    if request.method == "POST":
+        useremail = request.POST.get("e", '')
+        usertext  = request.POST.get("t", '')
+        ip  = __get_client_ip(request)
+        useragent = request.META.get('HTTP_USER_AGENT')
+       
+        Feedback.objects.create(useremail = useremail, usertext = usertext, ip = ip, useragent = useragent)
+        return HttpResponse(json.dumps({}), content_type = "application/json")
     return HttpResponse(json.dumps({PARAM_ERROR: "call not valid"}), content_type = "application/json")
 
 

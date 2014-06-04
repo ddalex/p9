@@ -11,5 +11,5 @@ urlpatterns = patterns('',
     url('^channel/(?P<channel_id>\d+)/relay', sign.views.xhr_channelrelay),
     url('^channel$', sign.views.xhr_channel),
     url('^log$', sign.views.xhr_logpost),
-    
+    url('^feedback$', sign.views.xhr_feedback),
 )
