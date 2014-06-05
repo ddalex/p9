@@ -358,6 +358,7 @@ def log(request, *args, **kwargs):
 @user_passes_test(lambda u: u.is_superuser)
 def oview(request, *args, **kwargs):
     context = {
+        "clients": Client.objects.filter(status = 0).order_by('id'),
         "channels": Channel.objects.filter(status = Channel.STATUS_ALIVE).select_related(),
     }
     return render(request, "clientoview.html", context)

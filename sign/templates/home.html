@@ -22,11 +22,8 @@
   <div class="row">
     <div class="col-md-6 container"><h2> Online channels </h2>
 	{% for c in channels %}	
-            <p> 
 		<a href="{% url "sign.views.channelview" c.id %}"><h3>{{c.name}}</h3></a>
-        {{c.description}}</br>
-        Started {{c.created|naturaltime}}
-            </p>     
+	        {{c.description}}<br/>Started {{c.created|naturaltime}}
     	{% endfor %}
     </div>
     <div class="col-md-6"><a href="{% url "sign.views.channelcreate" %}"><h3>Broadcast</h3></a>
