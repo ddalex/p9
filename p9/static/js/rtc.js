@@ -45,7 +45,8 @@ function rtcGetConnection(role, remoteId, onStateCB, onStreamCB, onDRecvCB) {
     // called on either createOffer or createAnswer
     var config = {
         iceServers: [
-                    { url: 'stun:stun.l.google.com:19302' },
+                { url: 'stun:stun.l.google.com:19302' },
+		{ url: 'turn:5.14.21.188:3478' },
         ]
     };
 
