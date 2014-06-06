@@ -76,6 +76,8 @@ def client_disconnect(clientlist):
     for c in clientlist:
         c.channelrelay_set.update(status = ChannelRelay.STATUS_DEAD)
         c.channel_set.update(status = Channel.STATUS_DEAD)
+        map(lambda y: y.delete(), c.message_set.all())
+        map(lambda y: y.delete(), c.recipient.all())
         c.status = Client.STATUS_DEAD
         c.save()        
         
@@ -187,6 +189,7 @@ def home(request):
     client_disconnect(Client.objects.filter(status=0).filter(updated__lt = datetime.now() - timedelta(seconds = 10)))
     context = {
         "channels": Channel.objects.filter(status = Channel.STATUS_ALIVE),
+        "ua": request.META.get('HTTP_USER_AGENT'),
     }
 
     return render(request, 'home.html', context)
@@ -199,14 +202,18 @@ def channelview(request, channelid):
     if c.status != 0:
         return redirect('home')
     context = {
-        "channel" : c
+        "channel" : c,
+        "ua": request.META.get('HTTP_USER_AGENT'),
     }
     return render(request, 'channelview.html', context)
 
 @must_have_user
 @login_required
 def channelcreate(request):
-    return render(request, 'channelcreate.html')
+    context = {
+        "ua": request.META.get('HTTP_USER_AGENT'),
+    }
+    return render(request, 'channelcreate.html', context)
 
 # UI interaction
 

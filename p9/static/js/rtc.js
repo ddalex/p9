@@ -21,7 +21,7 @@ var rtcDEBUG = 1;
     if the role is RECEIVER, the partner may be unknown
 */
 function rtcGetConnection(role, remoteId, onStateCB, onStreamCB, onDRecvCB) {
-    
+
     if (role === undefined) {
         role = ROLE.UNDEF;
     }
@@ -43,12 +43,22 @@ function rtcGetConnection(role, remoteId, onStateCB, onStreamCB, onDRecvCB) {
     var lPC = undefined;
 
     // called on either createOffer or createAnswer
-    var config = {
-        iceServers: [
+    var config;
+
+    if (navigator.mozGetUserMedia) {
+        config = {
+            iceServers: [
                 { url: 'stun:stun.l.google.com:19302' },
-		{ url: 'turn:5.14.21.188:3478' },
-        ]
-    };
+            ]
+        }
+    } else {
+        config = {
+            iceServers: [
+                { url: 'stun:stun.l.google.com:19302' },
+                { url: 'turn:5.14.21.188:3478' },
+            ]
+        }
+     }
 
 
 
@@ -59,7 +69,7 @@ function rtcGetConnection(role, remoteId, onStateCB, onStreamCB, onDRecvCB) {
             _RTCPeerConnection =  window.mozRTCPeerConnection
     else if (window.webkitRTCPeerConnection != undefined)
             _RTCPeerConnection =  window.webkitRTCPeerConnection
-    else throw "Error finding RTCPeerConnection";
+    else throw "Your browser will not work - it is missing RTCPeerConnection. Please use Chrome.";
 
     var _RTCSessionDescription = undefined;
     if (window.RTCSessionDescription != undefined)
@@ -297,7 +307,7 @@ function setVideoSendInitialBitRate(sdp, videoSendInitialBitrate) {
 
     lPC.gotSDP = 0;
     // we need to receive any renegociation from the remote ID
-    lPC.sdpCallback = smsRegisterCallback("sdp", 
+    lPC.sdpCallback = smsRegisterCallback("sdp",
         function (sender, message) {
             if (lPC.gotSDP) return;
             lPC.gotSDP = 1;

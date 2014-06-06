@@ -8,7 +8,7 @@
 <script src="{% static "js/appcommon.js" %}"></script>
 <script src="{% static "js/apprelay.js" %}"></script>
 <div id="main" role="main" ng-app="vision" ng-controller="viewCtrl" class="container">
-    <div class="row text-center"><video id="video"></video></div>
+    <div class="row text-center"><video id="video" controls></video><br/>Use Full Screen for the best experience.</div>
     <alert ng-repeat="alert in all_alerts" type="alert.type" close="alertClose($index)">{[alert.msg]}</alert>
     <hr/>
     <div>
