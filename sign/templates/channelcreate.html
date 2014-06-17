@@ -3,6 +3,7 @@
 {% load staticfiles %}
 
 {%block "mainbody"%}
+<script> var localId = "{{smsClientId}}"; </script>
 <script src="{% static "js/messaging.js" %}"></script>
 <script src="{% static "js/rtc.js" %}"></script>
 <script src="{% static "js/appcommon.js" %}"></script>

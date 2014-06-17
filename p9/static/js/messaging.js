@@ -23,7 +23,14 @@ function _smsCreateUUID() {
     return uuid;
 }
 
-var smsMyId = _smsCreateUUID();
+var smsMyId;
+
+if (localId.length == 0) {
+    smsMyId = _smsCreateUUID();
+}
+else {
+    smsMyId = localId;
+}
 
 var clientregistered = 0;
 

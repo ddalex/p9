@@ -123,6 +123,7 @@ def xhr_client(request):
                 if crtclient.status == Client.STATUS_ALIVE:
                     raise CallError("Client already registered")
 
+            request.session['smsClientId'] = crtclient.externid
             crtclient.status = request.POST.get('x', 0)
             crtclient.updated = datetime.now()
             crtclient.save()
@@ -204,6 +205,7 @@ def channelview(request, channelid):
     context = {
         "channel" : c,
         "ua": request.META.get('HTTP_USER_AGENT'),
+        "smsClientId": request.session['smsClientId'] if 'smsClientId' in request.session else "",
     }
     return render(request, 'channelview.html', context)
 
@@ -212,6 +214,7 @@ def channelview(request, channelid):
 def channelcreate(request):
     context = {
         "ua": request.META.get('HTTP_USER_AGENT'),
+        "smsClientId": request.session['smsClientId'] if 'smsClientId' in request.session else "",
     }
     return render(request, 'channelcreate.html', context)
 
@@ -285,13 +288,7 @@ def xhr_channelrelay(request, *args, **kwargs):
             status = int(request.POST.get(PARAM_STATUS, ChannelRelay.STATUS_PROSPECTIVE))
             cr, created = ChannelRelay.objects.get_or_create(channel = channel, client = client)
             # enforce transition PROSPECTIVE -> ALIVE -> DEAD
-            if created:
-                cr.status = status
-            else:
-                if cr.status == ChannelRelay.STATUS_PROSPECTIVE and status == ChannelRelay.STATUS_ALIVE or status == ChannelRelay.STATUS_DEAD:
-                    cr.status = status
-                else:
-                    raise CallError("Invalid CR lifecycle transition from %d to %d" % (cr.status, status))
+            cr.status = status
             cr.updated = datetime.now()
             cr.save()
 
