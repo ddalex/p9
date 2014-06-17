@@ -312,6 +312,14 @@ def xhr_logpost(request, *args, **kwargs):
             tag = request.POST.get("tag", '')
             log = request.POST.get("log", '')
 
+            # update states based on log
+            if "failed" in log:
+                client.failures += 1
+                client.save()
+            elif "connected" in log:
+                client.complets += 1
+                client.save()
+
             if len(tag) > 0 or len(log) > 0:
                 logobject = ClientLog.objects.create(client = client, tag = tag, log = log)
                 logobject.save()

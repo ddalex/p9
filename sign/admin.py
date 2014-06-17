@@ -24,9 +24,9 @@ class ClientLogAdmin(admin.ModelAdmin):
 admin.site.register(ClientLog, ClientLogAdmin)
 
 class ClientAdmin(admin.ModelAdmin):
-    list_display = ("status", "externid", "ip", "created", "useragent")
-    list_filter = ("status", )
-    ordering = ("status",)
+    list_display = ("status", "externid", "ip", "updated", "created", "useragent")
+    list_filter = ("status", "useragent", "failures", "complets")
+    ordering = ("status", "updated",)
 
 admin.site.register(Client, ClientAdmin)
 

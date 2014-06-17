@@ -19,7 +19,8 @@ class Client(models.Model):
     useragent = models.CharField(max_length=256, blank = True)
     created = models.DateTimeField(auto_now_add = True) 
     updated = models.DateTimeField(null=True)
-
+    failures  = models.IntegerField(default = 0)
+    complets  = models.IntegerField(default = 0)
     def __unicode__(self):
         return "Client " + self.externid + " " + self.ip
 
