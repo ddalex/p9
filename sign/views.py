@@ -353,7 +353,7 @@ def log(request, *args, **kwargs):
                     "clientlog_count": x.clientlog_set.count(),
                     "ip" : x.ip,
                     "useragent" : x.useragent,
-                    "updated" : str(x.updated)
+                    "updated" : str(x.updated),
                 } for x in Client.objects.filter(status=0).order_by('id')]), content_type = "application/json")
         return render(request, "clientlog.html", { 'clients': Client.objects.filter(status=0).order_by('id') })
     else:
@@ -361,8 +361,13 @@ def log(request, *args, **kwargs):
 
 @user_passes_test(lambda u: u.is_superuser)
 def oview(request, *args, **kwargs):
+    if request.GET.get("deadclients", 0):
+        clients = Client.objects.all()
+    else:
+        clients = Client.objects.filter(status = 0)
     context = {
-        "clients": Client.objects.filter(status = 0).order_by('id'),
+        "deadclients": int(request.GET.get("deadclients", 0)),
+        "clients": clients.order_by('id'),
         "channels": Channel.objects.filter(status = Channel.STATUS_ALIVE).select_related(),
     }
     return render(request, "clientoview.html", context)

@@ -88,7 +88,14 @@
 </script>
 
 <div id="main" role="main" ng-app="logview" ng-controller="appCtrl" class="container">
-    
+    <div class="row">
+    Show
+    {% if deadclients == 1 %}
+     <a href="?deadclients=0">Only Alive</a>
+    {% else %}
+     <a href="?deadclients=1">All Clients</a>
+    {% endif %}
+    </div>
 
     <div class="row">
       <div class="col-md-6">
@@ -108,7 +115,9 @@
               <tr><td>ID</td><td>{{cr.client.id}} - <a ng-click="changeLog('{{cr.client.externid}}')">{{cr.client.externid}}</a></td></tr>
               <tr><td>UserAgent</td><td>{{cr.client.useragent}}</td></tr>
               <tr><td>IP</td><td>{{cr.client.ip}}</td></tr>
-              <tr><td>Updated:</td><td>{{cr.client.updated}} ( status: {{cr.client.status}} )</td></tr>
+              <tr><td>Updated:</td><td>{{cr.client.updated}} (status: {{cr.client.status}} )</td></tr>
+              <tr><td>Created:</td><td>{{cr.client.created}} </td></tr>
+              <tr><td>Completed/Failure:</td><td>{{cr.client.complets}} / {{ cr.client.failures}}</td></tr>
             </table></br> {% endif %}
             {% endfor %}
           {% endfor %}
