@@ -260,12 +260,12 @@ def xhr_channel(request, **kwargs):
                 channel.created = datetime.now()
                 channel.save()
 
-            elif (channel_pk > -1 and status == Channel.STATUS_DEAD):
+            elif channel_pk > -1 and status == Channel.STATUS_DEAD:
                 # delete
                 channel = Channel.objects.get( pk = channel_pk, master = client, status = Channel.STATUS_ALIVE )
                 channel.status = Channel.STATUS_DEAD
                 channel.save()
-            else:   
+            else:
                 raise CallError("Unknown action requested") 
         
         return HttpResponse(json.dumps( [{PARAM_CHANNEL: x.pk, PARAM_CHANNELNAME: x.name} for x in Channel.objects.filter(status = Channel.STATUS_ALIVE)]), content_type = "application/json")

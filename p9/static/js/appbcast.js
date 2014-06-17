@@ -5,75 +5,84 @@ visionApp.controller('viewCtrl', function ($scope, $http, $q, $interval) {
     $scope.peers = [];
     $scope.remotes = [];
 
+    $scope._updatePeers = function( onsuccess ) {
+        $http.get ("/api/1.0/channel/" + $scope.channel_id + "/relay?" + $.param({s: $scope.local_id}))
+          .success(
+            function (data) {
+                var i, j;
+                $scope.remotes = [];
+                // add new remotes
+                for (j = 0; j < data.length; j++) {
+                  if (data[j].s != $scope.local_id) {
+                    r = new Object();
+                    r.s = data[j].s;
+                    if ($scope.peers._indexOfS(r) == -1) {
+                        $scope.remotes.push(r);
+                    }
+                  }
+                }
+                // disconnect peers that disappeared
+                for (j = 0; j < $scope.peers.length; j++) {
+                    if (data._indexOfS($scope.peers[j]) == -1) {
+                        console.log("removing connection - dead peer");
+                        $scope.removeConnection($scope.peers[j]);
+                    }
+                }
+                // do any other work requested by user
+                if ( typeof onsuccess === 'function' ) {
+                    onsuccess();
+                }
+             }
+        )
+        .error(
+            function() { smsLog("bcast", "error fetching channelrelays") }
+        );
+    }
+
 
     // waiting generates it's own r when it receives a call
     $scope.callWait = function (stateCB, dataCB) {
-        // we want to receive calls
-        
-        function _receiveSDP(sender, message) {
-            function _remoteForSender() {
-                var i;
-                for (i = 0; i < $scope.remotes.length; i++) 
-                    if ($scope.remotes[i].s == sender) {
-                        return $scope.remotes[i];
-                    }
-                return undefined;
-            }
+      $scope._receiveSDP = function (sender, message) {
 
-            function _setRtcConnection(r) {
-                smsLog("bcast", "got remote call from ", r, msg);
-    
-                r.lpc = rtcGetConnection( ROLE.RECEIVER, sender, function(state) { stateCB(r, state); }, $scope.streamCB, dataCB );
-                r.lpc.addStream($scope._stream);
-                r.lpc.setRemoteDescription(r.lpc.buildSessionDescription(msg),
-                    function () {
-                        smsLog("bcast", "success setting remote");
-                        r.lpc.createSDPResponse();
-                    }, console.log); // we got another peer's offer
-            }
+        function _setRtcConnection(r) {
+            smsLog("bcast", "got remote call from " + r.s, r, msg);
 
-            var msg = JSON.parse(message);
-            // SDPs from already connected peers are to be ignored
-            for (i = 0; i < $scope.peers.length; i++) {
-                if ($scope.peers[i].s == sender) {
-                    return;
+            r.lpc = rtcGetConnection( ROLE.RECEIVER, sender, function(state) { stateCB(r, state); }, $scope.streamCB, dataCB);
+            r.lpc.addStream($scope._stream);
+            r.lpc.setRemoteDescription(r.lpc.buildSessionDescription(msg),
+                function () {
+                    // smsLog("bcast", "success setting remote");
+                    r.lpc.createSDPResponse();
+                }, console.log); // we got another peer's offer
+        }
+
+        var msg = JSON.parse(message);
+        var sr = Object();
+        sr.s = sender;
+
+        // SDPs from already connected peers are to be ignored
+        if ($scope.peers._indexOfS(sr) > -1) {
+            return;
+        }
+
+        var ri = $scope.remotes._indexOfS(sr);
+
+        if (ri == -1) {     // we don't know this remote, get it from the server
+            $scope._updatePeers( function() {
+                var ri = $scope.remotes._indexOfS(sr);
+                if (ri != -1) {
+                    _setRtcConnection($scope.remotes[ri]);
+                } else {
+                    smsLog("bcast", "cannot find remote even after refreshing peer list");
                 }
-            }
+            });
+         } else {
+            _setRtcConnection($scope.remotes[ri]);
+        }
 
-            var r = _remoteForSender();
-
-            if (r === undefined) {
-                // fetch new remotes from the server
-                smsLog("bcast", "fetching channelrelays");
-                $http.get ("/api/1.0/channel/" + $scope.channel_id + "/relay?" + $.param({s: $scope.local_id}))
-                  .success(
-                    function (data) {
-                        smsLog("bcast", "got channel relays", data);
-                        var j;
-                        $scope.remotes = [];
-                        for (j = 0; j < data.length; j++) {
-                          if (data[j].s != $scope.local_id) {
-                            r = new Object();
-                            r.s = data[j].s;
-                            if ($scope.peers._indexOfS(r) == -1) {
-                                $scope.remotes.push(r);
-                            }
-                          }
-                        }
-                        r = _remoteForSender();
-                        if (r != undefined)
-                            _setRtcConnection(r);
-                    }
-                )
-                .error(
-                    function() { smsLog("bcast", "error fetching channelrelays") }
-                );
-            } else {
-                _setRtcConnection(r);
-            }
-         }
-         
-         smsRegisterCallback("sdp", _receiveSDP);
+      }
+        // we want to receive calls
+        smsRegisterCallback("sdp", $scope._receiveSDP);
     }
 
 
@@ -110,6 +119,8 @@ visionApp.controller('viewCtrl', function ($scope, $http, $q, $interval) {
         var p = $scope.remotes._indexOfS(c);
         if (p == -1)
           $scope.remotes.push(p);
+
+        $scope.broadcast_usersno = $scope.peers.length;
     }
 
     $scope.addConnection = function (c) {
@@ -122,32 +133,6 @@ visionApp.controller('viewCtrl', function ($scope, $http, $q, $interval) {
           $scope.remotes.splice(p, 1);
 
         $scope.broadcast_usersno = $scope.peers.length;
-    }
-
-    $scope.updateRemoteClients = function(clients) {
-        if (clients === undefined)
-            return;
-
-        $scope.remotes = [];
-
-        for (i = 0 ; i < clients.length; i++) {
-            j = clients[i];
-            if (j.s != smsMyId && $scope.peers._indexOfS(j) < 0) {
-                $scope.remotes.push(j);
-            }
-        }
-
-        for (i = 0; i < $scope.peers.length; i++) {
-            if (clients._indexOfS($scope.peers[i]) < 0) {
-                    $scope.removeConnection($scope.peers[i])
-            }
-        }
-
-
-        // we will refresh the client list
-        setTimeout(function() { smsListClients($scope.updateRemoteClients); }, 2500);
-
-        $scope.$digest();
     }
 
 
@@ -235,9 +220,10 @@ visionApp.controller('viewCtrl', function ($scope, $http, $q, $interval) {
         for (i = 0; i < $scope.peers.length; i++) {
             $scope.removeConnection($scope.peers[0]);
         }
-        $http.post("/api/1.0/channel?" + $.param({s : $scope.local_id}), {'channel' : $scope.channel_id, 's': 1})
+        $interval.cancel($scope.peerupdater);
+        $http.post("/api/1.0/channel?" + $.param({s : $scope.local_id}), {'channel' : $scope.channel_id, 'x': 1})
             .success( function (data) {
-                smsLog("bcast", "channeldel", data);
+                smsLog("bcast", "channel del", data);
                 // to do: drop p2p connections
                 $scope._setStateStop();
             }
@@ -278,10 +264,11 @@ visionApp.controller('viewCtrl', function ($scope, $http, $q, $interval) {
                 }
         ).then( function (retval) {
             // we got call result back
-            smsLog("bcast", "channeladd", retval);
+            smsLog("bcast", "channel add", retval);
             if ('error' in retval.data) {
                 $scope.alertAdd("danger", retval.data.error);
                 smsLog("bcast", "error while receiving data", retval);
+                return;
             }
             $scope.channel_id = undefined;
             var i;
@@ -300,13 +287,15 @@ visionApp.controller('viewCtrl', function ($scope, $http, $q, $interval) {
             // we set up the channel on the remote, update the UI
             $scope.broadcast_url = window.location.href.replace("channelcreate", "channelview/" + $scope.channel_id + "/");
 
+            // start call waiting
+            $scope.peerupdater = $interval($scope._updatePeers, 2000);
             $scope.callWait(
-                function(r, state) { smsLog("bcast", "incoming call state updated", r, state);  $scope._p2pConnectionStateChange(r, state); }, 
+                function(r, state) { smsLog("bcast", "incoming call state updated " + r.s, state);  $scope._p2pConnectionStateChange(r, state); },
                 function(data) { smsLog("bcast", "incoming call data callback", data); }
             );
             // update the UI to mark broadcasting
             $scope._setStateBcast();
-        },  function (data) { 
+        },  function (data) {
             smsLog("bcast", "channel add failed ", data);
         });
     }

@@ -14,7 +14,7 @@ var RTCSTATUS = {
     CONNECTED    : "connected",
 };
 
-var rtcDEBUG = 1;
+var rtcDEBUG = 0;
 
 /**
     returns a modified RTCPeerConnection to the specified partner.
@@ -333,7 +333,7 @@ function setVideoSendInitialBitRate(sdp, videoSendInitialBitrate) {
         },
         remoteId);
 
-    smsLog("rtc", "we got basic objects");
+    if (rtcDEBUG)smsLog("rtc", "we got basic objects");
     return lPC;
 }
 

@@ -128,7 +128,7 @@ visionApp.controller('viewCtrl', function($scope, $http, $q) {
         smsLog("relay", "user trigger connection to ", r);
         $scope._callRemote(r, 
             function(r, state) { 
-                smsLog("p2p", " outgoing call state updated", r, state);
+                smsLog("p2p", " outgoing call state updated "+ r.s, state);
                 $scope._p2pConnectionStateChange(r, state);
                 $scope.broadcast_status = state;
                 $scope.$apply();
