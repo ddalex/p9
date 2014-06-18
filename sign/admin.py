@@ -13,7 +13,7 @@ class AliveClientsRelatedFieldListFilter(RelatedFieldListFilter):
 
 class ClientLogAdmin(admin.ModelAdmin):
     list_display = ('client', 'tag', 'log', 'updated')
-    list_filter = (('client', AliveClientsRelatedFieldListFilter), )
+    list_filter = ('client', )
     ordering = ('-updated',)
 
     def formfield_for_foreignkey(self, db_field, request, **kwargs):
