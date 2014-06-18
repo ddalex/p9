@@ -15,7 +15,7 @@ class ClientLogAdmin(admin.ModelAdmin):
     list_display = ('client', 'tag', 'log', 'updated')
     list_filter = ('client', )
     ordering = ('-updated',)
-    search_fields = ("client__ip", "client__externid",)
+    search_fields = ("client__ip", "client__externid", "log", "tag",)
 
     def formfield_for_foreignkey(self, db_field, request, **kwargs):
         if db_field.name == "client":
@@ -27,7 +27,7 @@ admin.site.register(ClientLog, ClientLogAdmin)
 class ClientAdmin(admin.ModelAdmin):
     list_display = ("status", "externid", "ip", "updated", "created", "useragent")
     list_filter = ("status", "useragent", "failures", "complets")
-    ordering = ("status", "updated",)
+    ordering = ("status", "-updated", "-created", )
     search_fields = ("ip", "useragent", "externid", )
 
 admin.site.register(Client, ClientAdmin)
