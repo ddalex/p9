@@ -314,7 +314,7 @@ def xhr_logpost(request, *args, **kwargs):
             log = request.POST.get("log", '')
 
             # update states based on log
-            if "failed" in log:
+            if "failed" in log or "closed" in log:
                 client.failures += 1
                 client.save()
             elif "connected" in log:
