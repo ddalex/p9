@@ -112,7 +112,11 @@ visionApp.controller('viewCtrl', function ($scope, $http, $q, $interval) {
     $scope.removeConnection = function (c) {
         var p = $scope.peers._indexOfS(c);
         if (p > -1) {
-            $scope.peers[p].lpc.close();
+            try {
+                $scope.peers[p].lpc.close();
+            } catch (err) {
+                smsLog("bcast", "p2p: " + err);
+            }
             $scope.peers.splice(p, 1);
         }
 

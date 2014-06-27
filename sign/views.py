@@ -115,9 +115,10 @@ def xhr_client(request):
             # update client
             crtclient, created = Client.objects.get_or_create(
                     externid=request.GET['s'],
-                    ip  = __get_client_ip(request),
-                    useragent = request.META.get('HTTP_USER_AGENT')
-                )
+            )
+            crtclient.ip  = __get_client_ip(request)
+            crtclient.useragent = request.META.get('HTTP_USER_AGENT')
+                
 
             if not created:
                 if crtclient.status == Client.STATUS_ALIVE:

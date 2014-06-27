@@ -14,7 +14,7 @@ var RTCSTATUS = {
     CONNECTED    : "connected",
 };
 
-var rtcDEBUG = 0;
+var rtcDEBUG = 1;
 
 /**
     returns a modified RTCPeerConnection to the specified partner.
@@ -43,23 +43,27 @@ function rtcGetConnection(role, remoteId, onStateCB, onStreamCB, onDRecvCB) {
     var lPC = undefined;
 
     // called on either createOffer or createAnswer
+    console.log("!1");
     var config;
 
-    if (navigator.mozGetUserMedia) {
+//    if (navigator.mozGetUserMedia) {
         config = {
             iceServers: [
-                { url: 'stun:stun.l.google.com:19302' },
+                { "url": "stun:stun.l.google.com:19302" },
+                { "url": "stun:stun.services.mozilla.com" },
+                { "url": "turn:turn01.ddns01.com", "username": "test", "credential": "pass"  },
             ]
-        }
-    } else {
-        config = {
-            iceServers: [
-                { url: 'stun:stun.l.google.com:19302' },
-            ]
-        }
-     }
+        };
+  //  } else {
+  //      config = {
+  //          iceServers: [
+  //              { url: 'stun:stun.l.google.com:19302' },
+  //          ]
+  //      }
+  //   }
 
 
+    console.log("!2");
 
     var _RTCPeerConnection = undefined;
     if (window.RTCPeerConnection != undefined)
@@ -84,12 +88,14 @@ function rtcGetConnection(role, remoteId, onStateCB, onStreamCB, onDRecvCB) {
             _RTCIceCandidate = window.mozRTCIceCandidate
     else throw "Error finding RTCIceCandidate";
 
+    console.log("!2.5");
 
     lPC = new _RTCPeerConnection(config, {optional: [{RtpDataChannels: false}]});
 
     lPC.role = role;
     lPC.remoteId = remoteId;
 
+    console.log("!3");
     // lPC.sendChannel = lPC.createDataChannel("data1", {reliable: false});
     // lPC.sendChannel.onopen = function(evt) {
        // if(rtcDEBUG)smsLog("rtc", "data Channel: 1", evt);
@@ -285,6 +291,8 @@ function setVideoSendInitialBitRate(sdp, videoSendInitialBitrate) {
             if(rtcDEBUG)smsLog("rtc", "Role undefined, no idea what to do");
         }
     }
+
+    console.log("!4");
 
     lPC.onsignalingstatechange = function(evt) {
         if(rtcDEBUG)smsLog("rtc", "signalstatechange: ", lPC.signalingState);
