@@ -13,6 +13,8 @@
     <alert ng-repeat="alert in all_alerts" type="alert.type" close="alertClose($index)">{[alert.msg]}</alert>
     <hr/>
     <div>
+     </div>
+    <div>
       <table class="table">
     	<tr><td>Channel</td><td ng-init="channel_id = {{channel.id}}">{{channel.name}}</td></tr>
         <tr><td>Description</td><td>{{channel.description}}</td></tr>

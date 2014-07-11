@@ -197,6 +197,10 @@ def home(request):
     return render(request, 'home.html', context)
 
 @must_have_user
+def channelcast(request):
+    return render(request, "channelcast.html")
+
+@must_have_user
 def channelview(request, channelid):
     client_disconnect(Client.objects.filter(status=0).filter(updated__lt = datetime.now() - timedelta(seconds = 10)))
 

@@ -1,0 +1,32 @@
+{%extends "home.html"%}
+<!-- vim: set tabstop=2 expandtab ai: -->
+{% load staticfiles %}
+
+{% block "menu" %}
+<!-- no menu for chromecast -->
+{% endblock %}
+
+{%block "mainbody"%}
+<script> var localId = ""; </script>
+<script src="//www.gstatic.com/cast/sdk/libs/receiver/2.0.0/cast_receiver.js"></script>
+<script src="{% static "js/messaging.js" %}"></script>
+<script src="{% static "js/rtc.js" %}"></script>
+<script src="{% static "js/appcommon.js" %}"></script>
+<script src="{% static "js/appcast.js" %}"></script>
+<div id="main" role="main" ng-app="vision" ng-controller="viewCtrl" class="container">
+  <style type="text/css">
+video {
+    position: fixed; right: 0; bottom: 0;
+    min-width: 100%; min-height: 100%;
+    width: auto; height: auto; z-index: -100;
+    background-size: cover;
+}
+  </style>
+    <div class="row text-center"><video id="video" ></video></div>
+    <div ng-hide="hide_broadcast_status">
+        Broadcast Status {[broadcast_status]}
+    </div>
+
+</div>
+{%endblock%}
+

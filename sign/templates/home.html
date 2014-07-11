@@ -9,7 +9,7 @@
 	  {% endif %}
           {% if user.is_active %}
             <li><a href="{% url "django.contrib.auth.views.logout" %}">Logout</a></li>
-          {% else %}    
+          {% else %}
         {% if request.zero %}
             <li><a href="{% url "django.contrib.auth.views.login" %}">Login</a></li>
         {% endif %}
@@ -18,17 +18,91 @@
 {% endblock %}
 
 {%block "mainbody"%}
+<script src="//ajax.googleapis.com/ajax/libs/jquery/2.1.1/jquery.min.js"></script>
+<script type="text/javascript" src="https://www.gstatic.com/cv/js/sender/v1/cast_sender.js"></script>
+
+{% if "Chrome" in ua %}
+
+<script>
+// chromecast sender app
+var session;
+
+function onMediaDiscovered(how, media) {
+ media.addUpdateListener(onMediaStatusUpdate);
+}
+
+function receiverListener(e) {
+  if( e === chrome.cast.ReceiverAvailability.AVAILABLE) {
+       $("button#sendtocast").removeAttr("disabled");
+  }
+}
+
+function sessionListener(e) {
+  session = e;
+  if (session.media.length != 0) {
+    //onMediaDiscovered('onRequestSessionSuccess', session.media[0]);
+  }
+}
+
+initializeCastApi = function() {
+        // use RTC Cast receiver app
+        var sessionRequest = new chrome.cast.SessionRequest("B7E152F5");
+        var apiConfig = new chrome.cast.ApiConfig(sessionRequest,
+                        sessionListener,
+                        receiverListener);
+        chrome.cast.initialize(apiConfig,
+          function onInitSuccess() {
+		$("button#sendtocast").show();
+            },
+          function onError() { console.log("init failed"); });
+};
+
+sendToCast = function(id) {
+	chrome.cast.requestSession(
+	  function onRequestSessionSuccess(e) {
+		session = e;
+		console.log("chromecast: session success", session);
+		session.sendMessage('urn:x-cast:io.rtccast.demo', { "channel_id" : id },
+			function (err) { console.log("message success", err); },
+			function (err) { console.log("message failed", err ); });
+	  },
+	  function onLaunchError() {
+		console.log("chromecast: session error");
+	  }
+	);
+};
+
+
+window['__onGCastApiAvailable'] = function(loaded, errorInfo) {
+      if (loaded) {
+          initializeCastApi();
+      } else {
+          console.log(errorInfo);
+      }
+}
+
+window.onbeforeunload = function() {
+      if (session !== undefined) {
+	session.stop();
+      }
+}
+</script>
+
+{%endif%}
+
 <div class="container">
   <div class="row">
     <div class="col-md-6 container"><h2> Online channels </h2>
-	{% for c in channels %}	
+	{% for c in channels %}
+
 		<a href="{% url "sign.views.channelview" c.id %}"><h3>{{c.name}}</h3></a>
-	        {{c.description}}<br/>Started {{c.created|naturaltime}}
+		<button id="sendtocast" style="display: none" disabled class="btn" onclick="sendToCast({{c.id}})">Send to Chromecast!</button>
+		        {{c.description}}<br/>Started {{c.created|naturaltime}}
     	{% endfor %}
     </div>
     <div class="col-md-6"><a href="{% url "sign.views.channelcreate" %}"><h3>Broadcast</h3></a>
         <p> select to broadcast a new channel </p>
-    </div> 
+    </div>
   </div>
 </div>
 {%endblock%}
