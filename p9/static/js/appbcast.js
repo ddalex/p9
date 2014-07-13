@@ -42,21 +42,19 @@ visionApp.controller('viewCtrl', function ($scope, $http, $q, $interval) {
 
     // waiting generates it's own r when it receives a call
     $scope.callWait = function (stateCB, dataCB) {
-      $scope._receiveSDP = function (sender, message) {
+      function _receiveSDP(sender, recvdSDP) {
 
         function _setRtcConnection(r) {
-            smsLog("bcast", "got remote call from " + r.s, r, msg);
 
             r.lpc = rtcGetConnection( ROLE.RECEIVER, sender, function(state) { stateCB(r, state); }, $scope.streamCB, dataCB);
             r.lpc.addStream($scope._stream);
-            r.lpc.setRemoteDescription(r.lpc.buildSessionDescription(msg),
+            r.lpc.setRemoteSDP( recvdSDP,
                 function () {
                     // smsLog("bcast", "success setting remote");
                     r.lpc.createSDPResponse();
-                }, console.log); // we got another peer's offer
+                }); // we got another peer's offer
         }
 
-        var msg = JSON.parse(message);
         var sr = Object();
         sr.s = sender;
 
@@ -64,6 +62,8 @@ visionApp.controller('viewCtrl', function ($scope, $http, $q, $interval) {
         if ($scope.peers._indexOfS(sr) > -1) {
             return;
         }
+
+        smsLog("bcast", "got remote call from " + r.s, r);
 
         var ri = $scope.remotes._indexOfS(sr);
 
@@ -76,13 +76,13 @@ visionApp.controller('viewCtrl', function ($scope, $http, $q, $interval) {
                     smsLog("bcast", "cannot find remote even after refreshing peer list");
                 }
             });
-         } else {
+        } else {
             _setRtcConnection($scope.remotes[ri]);
         }
 
       }
         // we want to receive calls
-        smsRegisterCallback("sdp", $scope._receiveSDP);
+      smsRegisterCallback("sdp", _receiveSDP);
     }
 
 
@@ -175,22 +175,22 @@ visionApp.controller('viewCtrl', function ($scope, $http, $q, $interval) {
     $scope.all_alerts = [];
     $scope.channel_name = undefined;
     $scope.alertAdd = function(type, msg) {
-        var lalert ={'type': type, 'msg': msg};
-        smsLog("bcast", "user facing alert", lalert);
-        return $scope.all_alerts.push(lalert);
+            var lalert ={'type': type, 'msg': msg};
+            smsLog("bcast", "user facing alert", lalert);
+            return $scope.all_alerts.push(lalert);
     }
     $scope.alertClose = function(idx) {
-        $scope.all_alerts.splice(idx, 1);
+            $scope.all_alerts.splice(idx, 1);
     }
 
     var broadcastStatusEnum = {
-        STOP: "STOPPED",
-        BCAST: "BROADCASTING",
+STOP: "STOPPED",
+      BCAST: "BROADCASTING",
     }
 
     var bcastButtonLabelEnum = {
-        STOP: "End Transmission",
-        BCAST: "Start Transmission",
+STOP: "End Transmission",
+      BCAST: "Start Transmission",
     }
 
     $scope.broadcast_status = broadcastStatusEnum.STOP;
@@ -200,156 +200,156 @@ visionApp.controller('viewCtrl', function ($scope, $http, $q, $interval) {
     $scope.broadcast_usersno = 0;
 
     $scope._setStateBcast = function() {
-                $scope.broadcast_status = broadcastStatusEnum.BCAST;
-                $scope.broadcast_button_label = bcastButtonLabelEnum.STOP;
+            $scope.broadcast_status = broadcastStatusEnum.BCAST;
+            $scope.broadcast_button_label = bcastButtonLabelEnum.STOP;
     }
     $scope._setStateStop  = function() {
-                $scope.broadcast_status = broadcastStatusEnum.STOP;
-                $scope.broadcast_button_label = bcastButtonLabelEnum.BCAST;
+            $scope.broadcast_status = broadcastStatusEnum.STOP;
+            $scope.broadcast_button_label = bcastButtonLabelEnum.BCAST;
     }
 
     $scope.doButtonClick = function () {
-        if ($scope.broadcast_status == broadcastStatusEnum.STOP) {
-            $scope._bcastStart();
-        }
-        else if ($scope.broadcast_status == broadcastStatusEnum.BCAST) {
-            $scope.bcastStop();
-        }
-        else
-            throw "appbcast: Invalid action ! " + $scope.broadcast_status;
+            if ($scope.broadcast_status == broadcastStatusEnum.STOP) {
+                    $scope._bcastStart();
+            }
+            else if ($scope.broadcast_status == broadcastStatusEnum.BCAST) {
+                    $scope.bcastStop();
+            }
+            else
+                    throw "appbcast: Invalid action ! " + $scope.broadcast_status;
     }
 
     $scope.bcastStop = function () {
-        var i;
-        for (i = 0; i < $scope.peers.length; i++) {
-            $scope.removeConnection($scope.peers[0]);
-        }
-        $interval.cancel($scope.peerupdater);
-        $http.post("/api/1.0/channel?" + $.param({s : $scope.local_id}), {'channel' : $scope.channel_id, 'x': 1})
-            .success( function (data) {
-                smsLog("bcast", "channel del", data);
-                // to do: drop p2p connections
-                $scope._setStateStop();
+            var i;
+            for (i = 0; i < $scope.peers.length; i++) {
+                    $scope.removeConnection($scope.peers[0]);
             }
-        )
+            $interval.cancel($scope.peerupdater);
+            $http.post("/api/1.0/channel?" + $.param({s : $scope.local_id}), {'channel' : $scope.channel_id, 'x': 1})
+                    .success( function (data) {
+                                    smsLog("bcast", "channel del", data);
+                                    // to do: drop p2p connections
+                                    $scope._setStateStop();
+                                    }
+                            )
     }
 
     $scope._bcastStart = function() {
-        $scope.all_alerts = [];
-        var promise = undefined;
+            $scope.all_alerts = [];
+            var promise = undefined;
 
-        // step 1. verify that we have enough data to start streaming
-        // - we have channel setup ?
-        if ($scope.channel_name === undefined || $scope.channel_name.length < 3) {
-            $scope.alertAdd("danger", "We need a channel name.");
-            return;
-        }
-        if ($scope._stream === undefined) {
-            promise = $scope.getLocalMedia();
-        }
-        else
-        {
-            var d = $q.defer();
-            promise = d.promise;
-            d.resolve({});
-        }
-
-        // step 2. we have all that's needed
-	    promise.then(
-                // make the call to the server
-                function(data) {
-                    if ($scope._stream === undefined) { $scope.streamCB(data.data, data.msg); }
-                    // register the channel with the server
-                    return $http.post("/api/1.0/channel?" + $.param({s : $scope.local_id}), {'name' : $scope.channel_name, 'description': $scope.channel_description, 'x': 0});
-                },
-                function(data) {
-                    $scope.alertAdd("danger", "We do not have a local video.");
-                    smsLog("bcast", data);
-                }
-        ).then( function (retval) {
-            // we got call result back
-            smsLog("bcast", "channel add", retval);
-            if ('error' in retval.data) {
-                $scope.alertAdd("danger", retval.data.error);
-                smsLog("bcast", "error while receiving data", retval);
-                return;
+            // step 1. verify that we have enough data to start streaming
+            // - we have channel setup ?
+            if ($scope.channel_name === undefined || $scope.channel_name.length < 3) {
+                    $scope.alertAdd("danger", "We need a channel name.");
+                    return;
             }
-            $scope.channel_id = undefined;
-            var i;
-            for (i = 0; i < retval.data.length; i++) {
-                if (retval.data[i].name == $scope.channel_name) {
-                    $scope.channel_id = retval.data[i].channel;
-                    break;
-                }
+            if ($scope._stream === undefined) {
+                    promise = $scope.getLocalMedia();
+            }
+            else
+            {
+                    var d = $q.defer();
+                    promise = d.promise;
+                    d.resolve({});
             }
 
-            if ($scope.channel_id === undefined) {
-                $scope.alertAdd("danger", "Registration failed");
-                return;
-            }
+            // step 2. we have all that's needed
+            promise.then(
+                            // make the call to the server
+                            function(data) {
+                            if ($scope._stream === undefined) { $scope.streamCB(data.data, data.msg); }
+                            // register the channel with the server
+                            return $http.post("/api/1.0/channel?" + $.param({s : $scope.local_id}), {'name' : $scope.channel_name, 'description': $scope.channel_description, 'x': 0});
+                            },
+                            function(data) {
+                            $scope.alertAdd("danger", "We do not have a local video.");
+                            smsLog("bcast", data);
+                            }
+                        ).then( function (retval) {
+                                // we got call result back
+                                smsLog("bcast", "channel add", retval);
+                                if ('error' in retval.data) {
+                                $scope.alertAdd("danger", retval.data.error);
+                                smsLog("bcast", "error while receiving data", retval);
+                                return;
+                                }
+                                $scope.channel_id = undefined;
+                                var i;
+                                for (i = 0; i < retval.data.length; i++) {
+                                if (retval.data[i].name == $scope.channel_name) {
+                                $scope.channel_id = retval.data[i].channel;
+                                break;
+                                }
+                                }
 
-            // we set up the channel on the remote, update the UI
-            $scope.broadcast_url = window.location.href.replace("channelcreate", "channelview/" + $scope.channel_id + "/");
+                                if ($scope.channel_id === undefined) {
+                                $scope.alertAdd("danger", "Registration failed");
+                                return;
+                                }
 
-            // start call waiting
-            $scope.peerupdater = $interval($scope._updatePeers, 2000);
-            $scope.callWait(
-                function(r, state) { smsLog("bcast", "incoming call state updated " + r.s, state);  $scope._p2pConnectionStateChange(r, state); },
-                function(data) { smsLog("bcast", "incoming call data callback", data); }
-            );
-            // update the UI to mark broadcasting
-            $scope._setStateBcast();
-        },  function (data) {
-            smsLog("bcast", "channel add failed ", data);
-        });
+                                // we set up the channel on the remote, update the UI
+                                $scope.broadcast_url = window.location.href.replace("channelcreate", "channelview/" + $scope.channel_id + "/");
+
+                                // start call waiting
+                                $scope.peerupdater = $interval($scope._updatePeers, 2000);
+                                $scope.callWait(
+                                                function(r, state) { smsLog("bcast", "incoming call state updated " + r.s, state);  $scope._p2pConnectionStateChange(r, state); },
+                                                function(data) { smsLog("bcast", "incoming call data callback", data); }
+                                               );
+                                // update the UI to mark broadcasting
+                                $scope._setStateBcast();
+            },  function (data) {
+                    smsLog("bcast", "channel add failed ", data);
+            });
     }
 
 
     $scope.getLocalMedia = function () {
 
-        var deffered = $q.defer();
+            var deffered = $q.defer();
 
-        navigator.getMedia = ( navigator.getUserMedia ||
-            navigator.webkitGetUserMedia ||
-            navigator.mozGetUserMedia ||
-            navigator.msGetUserMedia);
+            navigator.getMedia = ( navigator.getUserMedia ||
+                            navigator.webkitGetUserMedia ||
+                            navigator.mozGetUserMedia ||
+                            navigator.msGetUserMedia);
 
-        navigator.getMedia (
+            navigator.getMedia (
 
-             // constraints
-             {
-                 video: true,
-                 audio: true,
-             },
+                            // constraints
+                            {
+video: true,
+audio: true,
+},
 
-             // successCallback
-             function(localMediaStream) {
-                 deffered.resolve({msg: 'add', data: localMediaStream});
-             },
+// successCallback
+function(localMediaStream) {
+deffered.resolve({msg: 'add', data: localMediaStream});
+},
 
-             // errorCallback
-             function(err) {
-                smsLog("bcast", "The following error occured: ", err);
-                alert("Cannot get local media, check browser settings.\nError type: " + err.name);
-                deffered.reject({msg:'err', data: err});
-             }
+// errorCallback
+function(err) {
+smsLog("bcast", "The following error occured: ", err);
+alert("Cannot get local media, check browser settings.\nError type: " + err.name);
+deffered.reject({msg:'err', data: err});
+}
 
-        );
-        return deffered.promise;
-    }
+);
+            return deffered.promise;
+            }
 
 });   // end of controller scope
 /**
-    Start the system
-*/
+  Start the system
+ */
 
 $(document).ready( function () {
 
-    var scope = angular.element("div#main").scope();
+                var scope = angular.element("div#main").scope();
 
-    scope.local_id  = smsMyId;
-    smsStartSystem();
-    scope.getLocalMedia().then(function (data) {scope.streamCB(data.data, data.msg); }) ;
+                scope.local_id  = smsMyId;
+                smsStartSystem();
+                scope.getLocalMedia().then(function (data) {scope.streamCB(data.data, data.msg); }) ;
 
 });
 

@@ -43,7 +43,6 @@ function rtcGetConnection(role, remoteId, onStateCB, onStreamCB, onDRecvCB) {
     var lPC = undefined;
 
     // called on either createOffer or createAnswer
-    console.log("!1");
     var config;
 
 //    if (navigator.mozGetUserMedia) {
@@ -63,7 +62,6 @@ function rtcGetConnection(role, remoteId, onStateCB, onStreamCB, onDRecvCB) {
   //   }
 
 
-    console.log("!2");
 
     var _RTCPeerConnection = undefined;
     if (window.RTCPeerConnection != undefined)
@@ -88,14 +86,12 @@ function rtcGetConnection(role, remoteId, onStateCB, onStreamCB, onDRecvCB) {
             _RTCIceCandidate = window.mozRTCIceCandidate
     else throw "Error finding RTCIceCandidate";
 
-    console.log("!2.5");
 
     lPC = new _RTCPeerConnection(config, {optional: [{RtpDataChannels: false}]});
 
     lPC.role = role;
     lPC.remoteId = remoteId;
 
-    console.log("!3");
     // lPC.sendChannel = lPC.createDataChannel("data1", {reliable: false});
     // lPC.sendChannel.onopen = function(evt) {
        // if(rtcDEBUG)console.log("rtc", "data Channel: 1", evt);
@@ -148,13 +144,13 @@ function rtcGetConnection(role, remoteId, onStateCB, onStreamCB, onDRecvCB) {
     function messageError(arguments) {
         console.log("rtc", arguments);
     }
-    
+
     // Find the line in sdpLines that starts with |prefix|, and, if specified,
     // contains |substr| (case-insensitive search).
     function findLine(sdpLines, prefix, substr) {
       return findLineInRange(sdpLines, 0, -1, prefix, substr)
     }
-    
+
     // Find the line in sdpLines[startLine...endLine - 1] that starts with |prefix|
     // and, if specified, contains |substr| (case-insensitive search).
     function findLineInRange(sdpLines, startLine, endLine, prefix, substr) {
@@ -169,23 +165,23 @@ function rtcGetConnection(role, remoteId, onStateCB, onStreamCB, onDRecvCB) {
       }
       return null;
     }
-    
+
     function preferBitRate(sdp, bitrate, mediaType) {
       var sdpLines = sdp.split('\r\n');
-    
+
       // Find m line for the given mediaType.
       var mLineIndex = findLine(sdpLines, 'm=', mediaType);
       if (mLineIndex === null) {
         messageError('Failed to add bandwidth line to sdp, as no m-line found');
         return sdp;
       }
-    
+
       // Find next m-line if any.
       var nextMLineIndex = findLineInRange(sdpLines, mLineIndex + 1, -1, 'm=');
       if (nextMLineIndex === null) {
         nextMLineIndex = sdpLines.length;
       }
-    
+
       // Find c-line corresponding to the m-line.
       var cLineIndex = findLineInRange(sdpLines, mLineIndex + 1, nextMLineIndex,
                                        'c=');
@@ -193,14 +189,14 @@ function rtcGetConnection(role, remoteId, onStateCB, onStreamCB, onDRecvCB) {
         messageError('Failed to add bandwidth line to sdp, as no c-line found');
         return sdp;
       }
-    
+
       // Check if bandwidth line already exists between c-line and next m-line.
       var bLineIndex = findLineInRange(sdpLines, cLineIndex + 1, nextMLineIndex,
                                        'b=AS');
       if (bLineIndex) {
         sdpLines.splice(bLineIndex, 1);
       }
-    
+
       // Create the b (bandwidth) sdp line.
       var bwLine = "b=AS:"+ bitrate;
       // As per RFC 4566, the b line should follow after c-line.
@@ -208,16 +204,16 @@ function rtcGetConnection(role, remoteId, onStateCB, onStreamCB, onDRecvCB) {
       sdp = sdpLines.join('\r\n');
       return sdp;
     }
-    
+
     // Gets the codec payload type from an a=rtpmap:X line.
     function getCodecPayloadType(sdpLine) {
       var pattern = new RegExp('a=rtpmap:(\\d+) \\w+\\/\\d+');
       var result = sdpLine.match(pattern);
       return (result && result.length == 2) ? result[1] : null;
     }
-    
+
     function setVideoSendInitialBitRate(sdp, videoSendInitialBitrate) {
-    
+
       // Validate the initial bitrate value.
       var maxBitrate = videoSendInitialBitrate;
       videoSendBitrate = videoSendInitialBitrate;
@@ -229,16 +225,16 @@ function rtcGetConnection(role, remoteId, onStateCB, onStreamCB, onDRecvCB) {
         }
         maxBitrate = videoSendBitrate;
       }
-    
+
       var sdpLines = sdp.split('\r\n');
-    
+
       // Search for m line.
       var mLineIndex = findLine(sdpLines, 'm=', 'video');
       if (mLineIndex === null) {
         messageError('Failed to find video m-line');
         return sdp;
       }
-    
+
       var vp8RtpmapIndex = findLine(sdpLines, "a=rtpmap", "VP8/90000")
       var vp8Payload = getCodecPayloadType(sdpLines[vp8RtpmapIndex]);
       var vp8Fmtp = "a=fmtp:"+ vp8Payload + "x-google-min-bitrate="+
@@ -266,13 +262,13 @@ function rtcGetConnection(role, remoteId, onStateCB, onStreamCB, onDRecvCB) {
 
     function setPreferAudioCodec(sdp, codec) {
       var sdpLines = sdp.split('\r\n');
-    
+
       // Search for m line.
       var mLineIndex = findLine(sdpLines, 'm=', 'audio');
       if (mLineIndex === null) {
         return sdp;
       }
-    
+
       // If the codec is available, set it as the default in m line.
       var codecIndex = findLine(sdpLines, 'a=rtpmap', codec);
       if (codecIndex) {
@@ -281,17 +277,27 @@ function rtcGetConnection(role, remoteId, onStateCB, onStreamCB, onDRecvCB) {
           sdpLines[mLineIndex] = setDefaultCodec(sdpLines[mLineIndex], payload);
         }
       }
-    
+
       sdp = sdpLines.join('\r\n');
       return sdp;
     }
-    
+
+    function setSendRecvline(sdp) {
+        var sdpLines = sdp.split('\r\n');
+        var i = findLine(sdpLines, "a=sendonly", '');
+        while ( i != null ) {
+            sdpLines[i] = "a=sendrecv";
+            i = findLine(sdpLines, 'a=sendonly', '')
+        }
+        return sdpLines.join('\r\n');
+    }
 
     function localDescriptionCallback(sdp) {
         if(rtcDEBUG)console.log("rtc", "acquired local description", sdp);
         if (lPC.role == ROLE.RECEIVER) { // we'll send video
             sdp.sdp = setVideoSendInitialBitRate(sdp.sdp, 900);
             sdp.sdp = setPreferAudioCodec(sdp.sdp, 'opus/48000');
+            sdp.sdp = setSendRecvline(sdp.sdp);
             if(rtcDEBUG)console.log("rtc", "modified local description", sdp);
         }
         lPC.setLocalDescription(sdp,
@@ -301,6 +307,11 @@ function rtcGetConnection(role, remoteId, onStateCB, onStreamCB, onDRecvCB) {
             },
             function (error) { if(rtcDEBUG)console.log("rtc", "ERR: setLocalDescription ", error) } // errorCallback
     )}
+
+    lPC._stream = undefined;
+    lPC.setStream = function(stream) {
+        lPC._stream = stream;
+    }
 
     lPC.createSDPResponse = function () {
         var mediaConstraints;
@@ -332,10 +343,12 @@ function rtcGetConnection(role, remoteId, onStateCB, onStreamCB, onDRecvCB) {
         }
     }
 
-    console.log("!4");
 
     lPC.onsignalingstatechange = function(evt) {
-        if(rtcDEBUG)console.log("rtc", "signalstatechange: ", lPC.signalingState);
+        if (lPC.signalingState == "stable" && lPC._stream != undefined) {
+            if(rtcDEBUG)console.log("rtc", "signalstatechange: ", lPC.signalingState);
+            lPC.addStream(lPC._stream);
+        }
     }
 
     lPC.onaddstream = function(evt) {
@@ -357,28 +370,34 @@ function rtcGetConnection(role, remoteId, onStateCB, onStreamCB, onDRecvCB) {
 
 //--------------------
     lPC.gotSDP = 0;
-    // we need to receive any renegociation from the remote ID
-    lPC.sdpCallback = smsRegisterCallback("sdp",
-        function (sender, message) {
+
+    lPC.setRemoteSDP = function (message, successCB, failCB ) {
             if (lPC.gotSDP) return;
             lPC.gotSDP = 1;
             msg = JSON.parse(message);
             if(rtcDEBUG)console.log("rtc", "negociation with our designed remote, received", msg);
             lPC.setRemoteDescription( new _RTCSessionDescription(msg),
-                function () { if(rtcDEBUG)console.log("rtc", "success setting remote"); },
-                function (err) { if(rtcDEBUG)console.log("rtc", err, message) }
+                successCB !== undefined ? successCB : function () { if(rtcDEBUG)console.log("rtc", "success setting remote"); },
+                failCB !== undefined ? failCB : function (err) { if(rtcDEBUG)console.log("rtc", err, message) }
             );
-        } ,
-        remoteId);
+    }
+
+    // we need to receive any renegociation from the remote ID
+    lPC.sdpCallback = smsRegisterCallback("sdp", function (s,m) { if (s == remoteId) { lPC.setRemoteSDP(m);} }, remoteId);
 
     // we want to register the candidates from the remote partner
     lPC.candidateCallback = smsRegisterCallback("candidate", function recvCandidate(sender, message) {
+            if (sender != remoteId)
+            {
+                throw "received candidate from invalid remote ";
+                return;
+            }
             msg = JSON.parse(message);
             //if(rtcDEBUG)console.log("rtc", "got candidate from remote ", sender, msg )
             var candidate = new _RTCIceCandidate({sdpMLineIndex: msg.sdpMLineIndex,
                                     candidate: msg.candidate});
             try {
-                lPC.addIceCandidate(candidate, 
+                lPC.addIceCandidate(candidate,
                     function () {console.log("ice success ");},
                     function () {console.log("ice failure ");}
                 );

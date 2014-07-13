@@ -45,7 +45,7 @@
     <script>
         sendFeedback = function () {
             jQuery.post("/api/1.0/feedback",{"e":$('#useremail').val(), "t":$('#usertext').val()},
-                function () {  
+                function () {
                     $('#modalContact').modal('hide');
                 });
         }
@@ -56,6 +56,8 @@
         <h4 class="modal-title" id="myModalLabel">Send us a message</h4>
       </div>
       <div class="modal-body container" style="padding: 60px; font-size:1.2em">
+        <div class="row"><p><b>What do we do ?</b><br/>we redefine the live TV broadcasting on the Internet, <br/> using peer to peer technology</p></div>
+        <div class="row"><br/><br/></div>
         <div class="row">
             <p><b>Your Email Address</b><br/>we hate spam as much as you do; we will never misuse your address,<br/> yet we need to know where to reply</p><input id="useremail" type="text" placeholder="email@domain">
         </div>
