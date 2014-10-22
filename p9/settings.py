@@ -138,6 +138,7 @@ INSTALLED_APPS = (
     'south',
     'sign',
     'p9',
+    'client',
 )
 
 AUTHENTICATION_BACKENDS = (
