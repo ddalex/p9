@@ -10,12 +10,21 @@ class APIException(Exception):
 
 import webrtc
 
+config = {
+            iceServers: [
+                { "url": "stun:stun.l.google.com:19302" },
+                { "url": "stun:stun.services.mozilla.com" },
+            ]
+        };
+
+
+
 class P9PeerConnection(webrtc.WebRTCPeerConnection):
     """  P9-specific peer connection; it streams the local configured file to the remote peer """
-    def __init__(p9, remoteId):
+    def __init__(p9, config = config, remoteId):
         self.partnerID = remoteID
         self.p9 = p9
-        return super(P9PeerConnection, self).__init__() 
+        return super(P9PeerConnection, self).__init__()
 
 
     def process_message(self, msgtype, msgdata):
@@ -28,7 +37,7 @@ class P9PeerConnection(webrtc.WebRTCPeerConnection):
             while msg
             self.p9.client_postmessage('sdp', self.create_answer())
             self.start_streaming()
-        
+
 
 class P9Client():
     """ Client for P9-based websites; it provides registration, channel creation, offer/answer exchanges, and
@@ -89,7 +98,7 @@ class P9Client():
         clients = json.loads(_xhr_call("POST", "/api/1.0/client?%s" % (_urlencode({'s' : my_id }) )))
         for client in clients:
             if client['s'] == my_id:
-                return my_id            
+                return my_id
         raise Exception("failed: client_register")
 
     def client_unregister(self, client_id):
@@ -103,7 +112,7 @@ class P9Client():
 
 
     def client_postmessage(self, client_id, msgtype, msg):
-        
+
 
     def channel_register(client_id, name):
         channels = json.loads(_xhr_call("POST", "/api/1.0/channel?%s" % (_urlencode({'s': client_id})), {'name': name, 'x': 0}))
@@ -116,7 +125,7 @@ class P9Client():
 
     def channel_unregister(channel_id):
         channels = json.loads(_xhr_call("POST", "/api/1.0/channel?%s" % (_urlencode({'s': client_id})), {'channel': channel_id, 'x': 1}))
-        
+
 
     def channel_getrelays(channel_id):
         relays = json.loads(_xhr_call("POST", "/api/1.0/channel/%s/relay?%s" % (channel_id, _urlencode({'s': client_id}))))
@@ -133,7 +142,7 @@ class P9Client():
             self._peers[msg['s']] = P9PeerConnection(self, msg['s'])
 
         self._peers[msg['s']].process_message(msg['t'], json.loads(msg['d']))
-            
+
 
 def main(p9):
     client_id = p9.client_register()
@@ -163,7 +172,7 @@ if __name__ == "__main__":
     except APIException as e:
         print "Connected, API error: ", e
     except IOError, Exception:
-        print "Failed to connect to server" 
+        print "Failed to connect to server"
         raise
 
     # we can connect, run the main code.

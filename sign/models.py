@@ -70,6 +70,6 @@ class ClientLog(models.Model):
 class Feedback(models.Model):
     useremail = models.CharField(max_length=128)
     usertext  = models.TextField()
-    ip        = models.GenericIPAddressField(blank = True)
+    ip        = models.GenericIPAddressField(blank = True, null = True)
     useragent = models.CharField(max_length=256, blank = True)
     created   = models.DateTimeField(auto_now_add = True) 
