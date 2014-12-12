@@ -5,6 +5,11 @@ import struct
 import random
 import datetime
 
+
+import logging
+
+logger = logging.getLogger(__name__)
+
 class RTCPeerConnection():
     """ WebRTC connection encapsulation; provides Connection interface and lifecycle management according to http://www.w3.org/TR/webrtc/ """
 
@@ -16,7 +21,7 @@ class RTCPeerConnection():
         # helpers
         self.SDPHelper = SDPHelper()
         assert 'ice' in config.keys()
-        self._ICEAgent = ICEAgent(config['iceServers'])
+        self.ICEAgent = ICEAgent(config['iceServers'])
 
         # data we track
         self.sdp_offer = None
@@ -36,7 +41,7 @@ class RTCPeerConnection():
 
         self.remote_media = self.sdp_offer['media']
 
-        self.local_candidates = self._ICEAgent.candidate_gather()
+        self.local_candidates = self.ICEAgent.candidate_gather()
 
         self.generate_media_pairs()
 
@@ -73,7 +78,7 @@ class RTCPeerConnection():
         localsendvideo = find_sending_stream('video', self.local_media)
         remoterecvvideo = find_receiving_stream('video', self.remote_media)
         if localsendvideo and remoterecvvideo:
-            port_pair = self._ICEAgent.verify_port_pairs(localsendvideo.candidates, remoterecv.candidates)
+            port_pair = self.ICEAgent.verify_port_pairs(localsendvideo.candidates, remoterecv.candidates)
             self.media_pairs.append({'type': 'video', 'pair': port_pair, 'localstream': localsendvideo, 'remotestream': remoterecvvideo})
 
         return self.media_pairs
@@ -106,6 +111,8 @@ class RTCPeerConnection():
 class MediaStream():
     def __init__(self, components):
         self.components = components
+        for i in xrange(len(self.components)):
+            self.components[i]['id'] = i
 
 
 class SDPHelper():
@@ -132,11 +139,21 @@ class ICEAgent():
     """ Implements an agent that talks RFC5245 over UDP to establish a Peer-to-Peer connection over NAT """
     PREFERENCE_TYPE = {}
     PREFERENCE_TYPE['host'] = 126
+    PREFERENCE_TYPE['srflx'] = 100
+    PREFERENCE_TYPE['prflx'] = 110  # peer reflex
     PREFERENCE_TYPE['stun'] = 63
     PREFERENCE_TYPE['turn'] = 1
 
+    CANDIDATE_STATE_WAITING = 1
+    CANDIDATE_STATE_INPROGRESS = 2
+    CANDIDATE_STATE_SUCCEEDED = 3
+    CANDIDATE_STATE_FAILED = 4
+    CANDIDATE_STATE_FROZEN = 5
+
     def __init__(self, config):
         self.config = config
+        self.local_candidates = []
+        self.remote_candidates = []
 
     def candidate_gather(self, media_stream):
 
@@ -146,7 +163,7 @@ class ICEAgent():
             return 32512
 
         def _candidate_priority(candidate_type, local_preference, component_id):
-            return (16777216 * _ICEAgent.PREFERENCE_TYPE[candidate_type])  + (256 * local_preference) + (256 - component_id)
+            return (16777216 * ICEAgent.PREFERENCE_TYPE[candidate_type])  + (256 * local_preference) + (256 - component_id)
 
         # HOST CANDIDATES
         # bind ports on all interfaces
@@ -160,28 +177,98 @@ class ICEAgent():
         for component in media_stream.components:
             for ip in local_ip4s:
                 candidate = {}
-                candidate['component'] = component
+                candidate['component_id'] = component['id']
                 candidate['base'] = candidate
                 candidate['type'] = 'host'
                 candidate['ip'] = ip
                 s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
                 s.bind((ip, 0))
                 candidate['port'] = s.getsockname()[1]
+                candidate['transport'] = 'udp'
+                candidate['foundation'] = 0
                 candidate['priority'] = _candidate_priority('host', _ip_preference(ip), component['id'])
-                s.close()
+                candidate['_socket'] = s
                 candidates.append(candidate)
 
 
         # SERVER REFLEXIVE CANDIDATES / STUN
+        # FIXME noop
         # RELAYED CANDIDATES / TURN
-        return candidates
+        # FIXME noop
 
-    def verify_port_pairs(self, local_candidates, remote_candidates):
+
+        # order by priority
+        self.local_candidates = sorted(candidates, key = lambda x: x['priority'], reverse = True)
+
+        # eliminate duplicates
+        for i in xrange(len(self.local_candidates)):
+            for j in xrange(i+1, len(self.local_candidates)):
+                try:
+                    l = self.local_candidates[i]
+                    r = self.local_candidates[j]
+                    if l['ip'] == r['ip'] and l['port'] == r['port'] and l['base'] == r['base']:
+                        del self.local_candidates[j]
+                except IndexError:
+                    continue
+
+        return self.local_candidates
+
+    def candidate_set_remote(self, candidates):
+        self.remote_candidates = candidates
+
+    def _start_check(self, cp):
+        cp[2]['stunagent'] = STUNAgent(cp['_socket'])
+        # peer address
+        peeraddress = ( cp[1]['ip'], cp[1]['port'] )
+        cp[2]['stunagent'].run_client( peeraddress )
+
+    def connectivity_checks(self):
         # Connectivity Checks
+        self.candidate_pairs = []
+
+        def _combine_foundation(self, f1, f2):
+            return f1 + f2
+
+        def _compute_priority(self, p1, p2):
+            pmin = p1 if p1 < p2 else p2
+            pmax = p1 if p1 > p2 else p2
+            flag = 1 if p1 > p2 else 0
+
+            return (4294967296 * pmin + 2 * pmax + flag)
+
+
+        for i in self.local_candidates:
+            for j in self.remote_candidates:
+                if self.local_candidates[i]['component_id'] == self.remote_candidates[i]['component_id']:
+                    self.candidate_pairs.append(
+                        (self.local_candidates[i], self.remote_candidates[j],
+                        {
+                            'foundation' : _combine_foundation(self.local_candidates[i]['foundation'], self.remote_candidates[j]['foundation']),
+                            'state': CANDIDATE_STATE_FROZEN,
+                            'priority': _compute_priority(self.local_candidates[i]['priority'], self.remote_candidates[j]['priority']),
+                        })
+                    )
+
         # 1. sort candidate pairs
-        # 2. send checks on each candidate pair / STUN request
-        # 3. ack checks received / STUN responses
-        pass
+        self.candidate_pairs = sorted(self.candidate_pairs, key = lambda x: x['priority'])
+
+        for cp in self.candidate_pairs:
+            if cp[3]['state'] == CANDIDATE_STATE_FROZEN:
+                #FIXME: determine which frozen candidate should be started
+                cp[3]['state'] = CANDIDATE_STATE_WAITING
+
+            if cp[3]['state'] == CANDIDATE_STATE_WAITING:
+                cp[3]['state'] = CANDIDATE_STATE_INPROGRESS
+                self._start_check(cp)
+
+    def verify_candidates(self):
+        for cp in self.candidate_pairs:
+            if cp[3]['state'] == CANDIDATE_STATE_INPROGRESS:
+                if cp[3]['stunagent'].is_verified():
+                    cp[3]['state'] == CANDIDATE_STATE_SUCCEEDED
+                elif cp[3]['stunagent'].is_timeouted():
+                    cp[3]['state'] == CANDIDATE_STATE_FAILED
+
 
 
 
@@ -252,7 +339,7 @@ class STUNAgent():
             attr = attr + attr_value
 
         elif attr_type == STUNAgent.MSGATTR_MAPPED_ADDRESS:
-            print "DEBUG: encoding mapped address ", attr_value
+            logger.info("DEBUG: encoding mapped address ", attr_value)
             if len(attr_value[0].split(".")) == 4:
                 value = struct.pack(">HHBBBB", STUNAgent.ADDR_FAMILY_IPV4, attr_value[1], *map(int, attr_value[0].split(".")))
                 attr = struct.pack(">HH", attr_type, len(value))
@@ -415,6 +502,8 @@ class STUNAgent():
 
 
 
+
+
     def run_client(self, server = None):
         if not "server" in vars(self) or self.server is None:
             self.server = server
@@ -422,7 +511,26 @@ class STUNAgent():
         if self.socket is None:
             self.socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
-        _msg_transaction =  self._create_transaction_id()
+        self._msg_transaction =  self._create_transaction_id()
+
+        import threading
+        self.client_thread = threading.Thread(target = STUNAgent._stun_client, args = (self,))
+        self.client_thread.daemon = True
+        self.client_thread.start()
+
+    def shutdown_client(self):
+        if not "client_thread" in vars(self):
+            raise Exception("STUN0016: no client running")
+
+        self.client_running = False
+        while self.client_thread.is_alive():
+            import time
+            time.sleep(0.01)
+            self.client_thread.join(1)
+
+    def _stun_client(self):
+
+        _msg_transaction = self._msg_transaction
 
         self._tracked_transactions[_msg_transaction] = {"client" :
             {   "status": "requestsent",
@@ -446,7 +554,7 @@ class STUNAgent():
                 # wait for response; the first request will actually be sent by the first retry :)
                 self._housekeeping_update()
 
-                if self._tracked_transactions[_msg_transaction]["client"]["status"] == "replyrecvd":
+                if self._tracked_transactions[self._msg_transaction]["client"]["status"] == "replyrecvd":
                     reflex_ip =  self._tracked_transactions[_msg_transaction]["client"]["rflxip"]
                     reflex_port = self._tracked_transactions[_msg_transaction]["client"]["rflxport"]
                     break
@@ -454,6 +562,8 @@ class STUNAgent():
                 # yield control
                 import time
                 time.sleep(0.01)
+        except:
+            self._tracked_transactions[_msg_transaction]["client"]["status"] == "failed"
 
         finally:
             # clean up
@@ -464,13 +574,13 @@ class STUNAgent():
 
 
     def _stun_server(self):
-        print "-- Running the stun server", self
+        logger.info("-- Running the stun server", self)
         self.server_running = True
         self.socket.settimeout(0.01)
         while self.server_running:
             try:
                 (packet, addr) = self.socket.recvfrom(2048)
-                print "-- Got packet from ", addr, " to ", self.socket.getsockname()
+                logger.info("-- Got packet from ", addr, " to ", self.socket.getsockname())
                 reply = self.process_packet(packet, addr)
                 if reply is not None:
                     self.socket.sendto(reply, addr)

@@ -17,7 +17,6 @@ a=recvonly
 a=extmap:1 urn:ietf:params:rtp-hdrext:ssrc-audio-level
 a=setup:actpass
 a=candidate:0 1 UDP 2122252543 192.168.2.192 38539 typ host
-  candidate:1 1 UDP 1686110207 83.217.123.106 38539 typ srflx raddr 192.168.2.192 rport 38539
 a=candidate:5 1 UDP 2122187007 192.168.122.1 38798 typ host
 a=candidate:10 1 UDP 2122121471 10.252.121.145 42016 typ host
 a=candidate:0 2 UDP 2122252542 192.168.2.192 35489 typ host

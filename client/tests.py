@@ -2,6 +2,8 @@ from django.test import TestCase
 
 from webrtc import MediaStream, SDPHelper, ICEAgent, STUNAgent, RTCPeerConnection
 
+import pprint
+
 class SDPDecodeTest(TestCase):
 
     def test_decodesdp(self):
@@ -30,11 +32,11 @@ class ICEAgentTests(TestCase):
     def setUp(self):
         self.config = [ { "url": "stun:stun.l.google.com:19302" }, { "url": "stun:stun.services.mozilla.com"}, ]
 
-        self.iceagent = ICEAgent(self.config)
-        self.test_stream = MediaStream([{'id' : 1, 'type': 'rtp'}, {'id': 2, 'type': 'rtcp'}])
         pass
 
     def test_gather_candidates(self):
+        self.iceagent = ICEAgent(self.config)
+        self.test_stream = MediaStream([{'id' : 1, 'type': 'rtp'}, {'id': 2, 'type': 'rtcp'}])
         candidates = self.iceagent.candidate_gather(self.test_stream)
         self.assertTrue(len(candidates) > 0, "Must have at least one candidate")
         for c in candidates:
@@ -43,6 +45,30 @@ class ICEAgentTests(TestCase):
         pass
 
     def test_establish_connection(self):
+        otheragent =  ICEAgent(self.config)
+        mock_stream = MediaStream([{'id' : 1, 'type': 'rtp'}, {'id': 2, 'type': 'rtcp'}])
+        remote_candidates = otheragent.candidate_gather(mock_stream)
+
+
+        self.iceagent = ICEAgent(self.config)
+        self.test_stream = MediaStream([{'id' : 1, 'type': 'rtp'}, {'id': 2, 'type': 'rtcp'}])
+        local_candidates = self.iceagent.candidate_gather(self.test_stream)
+
+        self.iceagent.candidate_set_remote(remote_candidates)
+        otheragent.candidate_set_remote(local_candidates)
+
+        local_valid_pairs = self.iceagent.connectivity_checks()
+        remote_valid_pairs = otheragent.connectivity_checks()
+
+        def _pairs_equivalent(l, r):
+            self.assertTrue(len(l) == len(r), "Pair list are not equal length \n%s\n%s" % (pprint.pformat(l), pprint.pformat(r)))
+
+            for i in xrange(len(l)):
+                self.assertTrue(l[i][0] == r[i][1], "Local address not matched to remote's representation of my address")
+                self.assertTrue(l[i][1] == r[i][0], "My remote's address not matched to remote's local address")
+
+        self.assertTrue(_pairs_equivalent(local_valid_pairs, remote_valid_pairs), "Connectivity pairs are not valid")
+
         pass
 
 
