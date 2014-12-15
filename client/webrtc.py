@@ -7,7 +7,7 @@ import datetime
 
 
 import logging
-
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 class RTCPeerConnection():
@@ -118,22 +118,188 @@ class MediaStream():
 class SDPHelper():
     """ Helper SDP for decoding/encoding SDP messages to/from internal structures. rtc????
     """
-    class NotSDPMessage(Exception):
-        pass
-
     class ProcessingError(Exception):
         pass
 
-    def message_encode(self, msg):
+    def message_decode(self, msg):
         """ takes an SDP message and returns a internal-structure object
         """
-        raise SDPHelper.ProcessingError()
+        obj = {}
+        target = obj    # context-dependent dictionary for filling in information
+        first_line = True
+        for line in msg.split("\n"):
+            if len(line) == 0:
+                continue
+            try:
+                attr, value = line.split("=",1)
+            except ValueError:
+                raise
+            value = value.strip()
+            if attr == "v":         # protocol version
+                if not first_line:
+                    raise SDPHelper.ProcessingError("v attribute not in the first line")
+                obj["version"] = value
 
-    def message_decode(msg, obj):
+            elif attr == "o":       # owner/creator and session identifier
+                (username, session_id, version, network_type, address_type, address) = value.split(" ")
+                obj["identifier"] = (username, session_id, version, network_type, address_type, address)
+
+            elif attr == "s":       # session name
+                if "session_name" in obj:
+                    raise SDPHelper.ProcessingError("encountered duplicate 's' attribute, was '%s', new value '%s'" %(obj["session_name"], value))
+                obj["session_name"] = value
+
+            elif attr == "i":       # session information
+                if "session_description" in target:
+                    raise SDPHelper.ProcessingError("encountered duplicate 'i' attribute on %s, was '%s', new value '%s'" %(str(target), target["session_description"], value))
+                target["session_description"] = value
+
+            elif attr == "u":       # URI of description
+                if "uri" in obj:
+                    raise SDPHelper.ProcessingError("encountered duplicate 'u' attribute, was '%s', new value '%s'" %(obj["uri"], value))
+                obj["uri"] = value
+
+            elif attr == "e" or attr == "p":       # email address or phone number
+                if not "contact" in obj:
+                    obj["contact"] = []
+                obj["contact"].append("value")
+
+            elif attr == "c":       # connection information
+                if "connection" in target:
+                    raise SDPHelper.ProcessingError("encountered duplicate 'c' attribute on %s, was '%s', new value '%s'" %(str(target), target["connection"], value))
+                (network_type, address_type, address) = value.split(" ")
+                if network_type != "IN":
+                    raise SDPHelper.ProcessingError("unknown network type %s, expected 'IN'" % str(network_type))
+                target["connection"] = (network_type, address_type, address)
+
+            elif attr == "b":       # bandwidth information
+                pass        # FIXME we ignore bandwidth for now
+            elif attr == "z":       # time zone adjustment
+                pass
+            elif attr == "k":       # encryption key
+                logger.warn("Unprocessed encryption key %s" % value)
+                pass
+            elif attr == "a":       # attribute lines !
+                # extensible attribute, store in the current target
+                if ":" in value:
+                    extattr, extval = value.split(":", 1)
+                    extattr = "extattr:" + extattr
+                else:
+                    extattr = "extattr"
+                    extval = value
+
+                if not extattr in target:
+                    target[extattr] = []
+                target[extattr].append(extval)
+
+            elif attr == "t":       # time the session is active
+                obj["time"] = map(lambda x: (int(x) - 2208988800), value.split(" "))    # start and stop time, converted from Network Time to Unix time
+            elif attr == "r":       # repeat times
+                logger.info("Unprocessed repeat times %s" % value)
+                pass                # we ignore repeat times for now
+
+            elif attr == "m":       # media name and transport addresses
+                if not "mediastreams" in obj:
+                    obj["mediastreams"] = []
+                target = {}
+                obj["mediastreams"].append(target)
+                (media_type, port, transport, fmtlist)=value.split(" ", 3)
+                if media_type not in ["audio", "video", "application", "data", "control"]:
+                    raise SDPHelper.ProcessingError("unknown media type %s", media_type)
+                target["media"] = media_type
+                target["port"] = port
+                target["transport"] = transport
+                target["fmtlist"] = fmtlist
+
+
+            elif attr == "i":       # media title
+                pass
+            else:
+                # we must ignore any attributes we don't understand
+                logger.warn("ignored unknown SDP attibute %s=%s" % (attr, value))
+
+            first_line = False
+
+
+        # message processing done, verify that we have at lest the required fields
+        if not "version" in obj:
+            raise SDPHelper.ProcessingError("v field missing %s" % obj)
+        if obj["version"] != "0":
+            raise SDPHelper.ProcessingError("unknown version %s, expected '0'" % obj["version"])
+        # limit ourselves to internet connections
+        if obj["identifier"][3] != "IN":
+            raise SDPHelper.ProcessingError("unknown network type %s, expected 'IN'" % str(obj["identifier"]))
+
+
+        # we're done
+        return obj
+
+    def message_encode(msg, obj):
         """ takes an internal structure Python object and returns an SDP message
         """
-        raise SDPHelper.ProcessingError()
+        out = ""
 
+        # write the protocol version
+        out += "v=0\r\n"
+
+        # identifier must be "username sess-id sess-version nettype addrtype addr"
+        if len(obj["identifier"]) != 6:
+            raise SDPHelper.ProcessingError("identifier in unknown format %s" % (obj["identifier"],))
+        out += "o=" + " ".join(obj["identifier"]) + "\r\n"
+
+        # session name
+        out += "s=" + obj["session_name"] + "\r\n"
+
+        # time
+        if "time" in obj:
+            out += "t=" + " ".join(map(lambda x: str(x + 2208988800), obj["time"])) + "\r\n"
+
+        # session information
+        if "session_description" in obj:
+            out += "i=" + obj["session_description"] + "\r\n"
+
+        # description URI, if exists
+        if "uri" in obj:
+            out += "u=" + obj["uri"] + "\r\n"
+
+        if "contacts" in obj:
+            for c in obj["contacts"]:
+                out += "e=%s\r\n" % c   # FIXME - proper detection of phone nos and other stuff
+
+        def _save_conn(tgt):
+            tmp = ""
+            if "connection" in tgt:
+                tmp += "c=" + " ".join(tgt["connection"]) + "\r\n"
+            return tmp
+
+        out += _save_conn(obj)
+
+
+        # FIXME we don't do bandwidth, time or key fields at this time
+
+
+        # save an attribute
+        def _save_attr(tgt):
+            tmp = ""
+            for attr in tgt.keys():
+                if attr.startswith("extattr:"):
+                    name = attr.split(":",1)[1]
+                    for v in tgt[attr]:
+                        tmp += "a=" + name + ":" + v + "\r\n"
+                elif attr.startswith("extattr"):
+                    for v in tgt[attr]:
+                        tmp += "a=" + v +"\r\n"
+            return tmp
+
+        out += _save_attr(obj)
+
+        for m in obj["mediastreams"]:
+            out += "m=" + "%s %s %s %s" % (m["media"], m["port"], m["transport"], m["fmtlist"]) + "\r\n"
+            out += _save_conn(m)
+            out += _save_attr(m)
+
+
+        return out
 
 class ICEAgent():
     """ Implements an agent that talks RFC5245 over UDP to establish a Peer-to-Peer connection over NAT """

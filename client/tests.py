@@ -4,22 +4,30 @@ from webrtc import MediaStream, SDPHelper, ICEAgent, STUNAgent, RTCPeerConnectio
 
 import pprint
 
-class SDPDecodeTest(TestCase):
+class SDPHelperTest(TestCase):
 
     def test_decodesdp(self):
         with open("client/sdp_decodetest.txt", "r") as f:
             data = SDPHelper().message_decode(f.read())
+            # pprint.pprint(data)
+            # we have a the fields a human can read from data
+            self.assertTrue("version" in data)
+            self.assertTrue("identifier" in data)
+            self.assertTrue(data["identifier"][0] == "Mozilla-SIPUA-33.0")
+            self.assertTrue("mediastreams" in data)
+            self.assertTrue(len(data["mediastreams"]) == 2)
+            self.assertTrue("connection" in data["mediastreams"][0])
+            self.assertTrue("connection" in data["mediastreams"][1])
 
-            # to do asserts
 
     def test_encodesdp(self):
         with open("client/sdp_decodetest.txt", "r") as f:
             filecontent = f.read()
-            data = SDPHelper().message_decode(f.read())
+            data = SDPHelper().message_decode(filecontent)
 
         encodedcontent = SDPHelper().message_encode(data)
 
-        self.assertTrue(filecontent == encodedcontent)
+        self.assertTrue(data == SDPHelper().message_decode(encodedcontent), "Encoded content is ===\n%s" % encodedcontent)
 
 class MediaStreamTests(TestCase):
     def test_hasComponents(self):
