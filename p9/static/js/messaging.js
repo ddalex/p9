@@ -1,6 +1,5 @@
 /* vim: set tabstop=4 expandtab softab: */
-//var HOMEURL = "http://localhost:8000";
-var HOMEURL = "";
+var HOMEURL = "/api/1.0";
 
 var _smsMsgCallbacks = {}
 // start at most 5 seconds ago
@@ -23,12 +22,38 @@ function _smsCreateUUID() {
     return uuid;
 }
 
-var smsMyId = _smsCreateUUID();
+var smsMyId;
+
+if (localId.length == 0) {
+    smsMyId = _smsCreateUUID();
+}
+else {
+    smsMyId = localId;
+}
+
+var clientregistered = 0;
+
+function smsLog(tag, l) {    
+    console.log(arguments);
+    if (!clientregistered) {
+        _smsUpdateClient();
+        clientregistered = 1;
+    }
+    var myRequest = new XMLHttpRequest();
+    myRequest.open("POST", HOMEURL+"/log?s="+encodeURIComponent(smsMyId), true);
+    var logtext = ""; var i = 1;
+    for (i = 1; i < arguments.length; i++) {
+        logtext = logtext + arguments[i] + ", ";
+    }
+    myRequest.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
+    myRequest.send("tag=" + encodeURIComponent(tag) + "&log=" + encodeURIComponent(logtext));
+}
 
 // just for debug
 (function (){
- if(smsDebug)console.log("My ID is ", smsMyId);
+ if(smsDebug)smsLog("sms", "My ID is ", smsMyId);
 })();
+
 
 function smsGetMessages(f) {
     var myRequest = new XMLHttpRequest();
@@ -70,7 +95,7 @@ function smsPostMessage(recipient, type, data, f ) {
 
 function smsRegisterCallback(msgtype, callable, sender) {
     o = { sender: sender, callable: callable }
-    if(smsDebug)console.log("sms: registering callback for " + msgtype + " : ", o);
+    if(smsDebug)smsLog("sms", " registering callback for " + msgtype + " : ", o);
     if (msgtype in _smsMsgCallbacks) {
         _smsMsgCallbacks[msgtype].push(o);
     } else {
@@ -80,18 +105,18 @@ function smsRegisterCallback(msgtype, callable, sender) {
 }
 
 function smsUnregisterCallback(msgtype, idx) {
-    console.log("sms: updating " + msgtype + " pos ", idx);
+    smsLog("sms", " updating " + msgtype + " pos ", idx);
     _smsMsgCallbacks[msgtype].splice(idx, 1);
 }
 
 function _smsDispatchMessage(type, sender, data) {
     if (type in _smsMsgCallbacks) {
-        if(smsDebug)console.log("sms: callbacks for " + type, sender, _smsMsgCallbacks[type]);
+        if(smsDebug)smsLog("sms", " callbacks for " + type, sender, _smsMsgCallbacks[type]);
         for (i = 0; i < _smsMsgCallbacks[type].length; i++) {
                 f = _smsMsgCallbacks[type][i].callable
                 s = _smsMsgCallbacks[type][i].sender
                 if (s == sender || s === undefined) {
-                if(smsDebug)console.log("sms:   matched " + i + " filter ", _smsMsgCallbacks[type][i]);
+                if(smsDebug)smsLog("sms", "   matched " + i + " filter ", _smsMsgCallbacks[type][i]);
                      f(sender, data);
                 }
         }
@@ -134,16 +159,16 @@ function smsListClients(f) {
 var handle;        // this is the handle for the interative setInterval
 
 function smsStartSystem() {
-    if(smsDebug)console.log("starting system");
     _smsUpdateClient();        // signal we're alive
+    if(smsDebug)smsLog("sms", "starting system");
     handle = setInterval(function() {
             smsGetMessages( _smsProcessMessages ) },
-            1000);
+            2000);
 }
 
 function smsStopSystem() {
+    _smsUpdateClient(1);        // mark dead client
     clearInterval(handle);
     handle = undefined;
-    _smsUpdateClient(1);        // mark dead client
 }
 

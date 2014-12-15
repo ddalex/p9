@@ -1,4 +1,7 @@
+venv
+*db
 *pyc
 *swp
 patches/*
 *sqlite*
+staticfiles

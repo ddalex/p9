@@ -1,0 +1,34 @@
+{%extends "home.html"%}
+<!-- vim: set tabstop=2 expandtab ai: -->
+{% load staticfiles %}
+
+{%block "mainbody"%}
+<script> var localId = "{{smsClientId}}"; </script>
+<script src="{% static "js/messaging.js" %}"></script>
+<script src="{% static "js/rtc.js" %}"></script>
+<script src="{% static "js/appcommon.js" %}"></script>
+<script src="{% static "js/appbcast.js" %}"></script>
+<div id="main" role="main" ng-app="vision" ng-controller="viewCtrl" class="container">
+    <div class="row text-center"><video id="video"></video></div>
+    <div class="row">
+    <label>Channel Name &nbsp;</label><br/><input type="text" ng-model="channel_name" placeholder="... name your channel"></input>
+    </div><div class="row">
+    <label>Description</label><br/><textarea ng-model="channel_description"></textarea>
+    
+    </div><div class="row">
+    <button type="button" class="btn btn-primary" ng-click="doButtonClick()">{[broadcast_button_label]}</button>
+    <alert ng-repeat="alert in all_alerts" type="alert.type" close="alertClose($index)">{[alert.msg]}</alert>
+    <hr/>
+    </div>
+    <div class="row">
+      <table class="table">
+        <tr><td>Broadcast Status</td><td>{[broadcast_status]}</td></tr>
+        <tr><td>Broadcast URL</td><td><input readonly ng-model="broadcast_url" size="40"/></td></tr>
+        <tr><td>Number of viewers</td><td>{[broadcast_usersno]}</td></tr>
+        <tr><td>Client ID</td><td>{[local_id]}</td></tr>
+
+      </table>
+    </div>
+
+</div>
+{%endblock%}
