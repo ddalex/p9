@@ -297,7 +297,7 @@ function rtcGetConnection(role, remoteId, onStateCB, onStreamCB, onDRecvCB) {
         if (lPC.role == ROLE.RECEIVER) { // we'll send video
             sdp.sdp = setVideoSendInitialBitRate(sdp.sdp, 900);
             sdp.sdp = setPreferAudioCodec(sdp.sdp, 'opus/48000');
-            sdp.sdp = setSendRecvline(sdp.sdp);
+            //sdp.sdp = setSendRecvline(sdp.sdp);
             if(rtcDEBUG)console.log("rtc", "modified local description", sdp);
         }
         lPC.setLocalDescription(sdp,
